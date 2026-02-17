@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Legal &amp; Litigation Intelligence — SDM{% endblock %}
+
+{% block content %}
+<div class="content">
+<div class="breadcrumb">
+  <a href="/">Home</a><span class="sep">&rsaquo;</span>Legal &amp; Litigation Intelligence
+</div>
+
+<h1>Legal &amp; Litigation Intelligence</h1>
+<p class="sub">Search federal court records, SEC filings, and case law databases for cryptocurrency litigation and bankruptcy cases.</p>
+
+<form id="f">
+  <div class="row">
+    <input type="text" id="q" name="q" class="wide" placeholder="Enter company name (e.g. FTX, Celsius, BlockFi)..." autofocus>
+    <button type="submit" id="btn">Search</button>
+    <span class="spinner" id="spin">Searching...</span>
+  </div>
+  <div class="checkbox-row" style="margin-bottom:16px;">
+    <label><input type="checkbox" class="src-cb" value="opinions" checked> CourtListener Opinions</label>
+    <label><input type="checkbox" class="src-cb" value="dockets" checked> CourtListener Dockets</label>
+    <label><input type="checkbox" class="src-cb" value="sec" checked> SEC EDGAR</label>
+    <label><input type="checkbox" class="src-cb" value="canlii"> CanLII (Canada)</label>
+  </div>
+</form>
+
+<div id="results"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allCases = [];
+let currentPage = 1;
+let perPage = 10;
+
+document.getElementById('f').addEventListener('submit', function(e) {
+  e.preventDefault();
+  doSearch();
+});
+
+async function doSearch() {
+  const q = document.getElementById('q').value.trim();
+  if (!q) return;
+  const btn = document.getElementById('btn');
+  const spin = document.getElementById('spin');
+  const sources = [...document.querySelectorAll('.src-cb:checked')].map(cb => cb.value);
+  if (!sources.length) { alert('Select at least one source'); return; }
+  btn.disabled = true;
+  spin.style.display = 'inline';
+  spin.textContent = 'Searching ' + sources.length + ' source' + (sources.length > 1 ? 's' : '') + '...';
+  document.getElementById('results').innerHTML = skeletonRows(5);
+  try {
+    const params = new URLSearchParams({q: q, sources: sources.join(',')});
+    const r = await fetch('/legal/search?' + params);
+    const d = await r.json();
+    allCases = d;
+    currentPage = 1;
+    render(d);
+  } catch(err) {
+    document.getElementById('results').innerHTML = '<p class="err">Request failed: ' + err + '</p>';
+  }
+  btn.disabled = false;
+  spin.style.display = 'none';
+}
+
+function render(d) {
+  const el = document.getElementById('results');
+  let h = '';
+
+  // Breadcrumb update
+  h += '<div class="breadcrumb"><a href="/">Home</a><span class="sep">&rsaquo;</span><a href="/legal">Legal &amp; Litigation</a><span class="sep">&rsaquo;</span>Results for "' + esc(d.query) + '"</div>';
+
+  // Summary table
+  h += '<h2>Source Summary</h2>';
+  h += '<table><tr><th>Source</th><th>Cases</th><th>Status</th></tr>';
+  let total = 0;
+  for (const r of d.api_results) {
+    const cnt = r.count;
+    let status, cls;
+    if (r.error) { status = 'Error: ' + r.error; cls = 'err'; }
+    else if (cnt === 0) { status = 'No results'; cls = 'none'; }
+    else { status = 'OK'; cls = 'ok'; total += cnt; }
+    h += '<tr><td>' + esc(r.source) + '</td>';
+    h += '<td class="count">' + (cnt !== null ? cnt : '—') + '</td>';
+    h += '<td class="' + cls + '">' + status + '</td></tr>';
+  }
+  h += '<tr><td><strong>Total</strong></td><td class="count"><strong>' + total + '</strong></td><td></td></tr>';
+  h += '</table>';
+
+  // Plaintiffs
+  if (d.plaintiffs && d.plaintiffs.length) {
+    h += '<h2>Plaintiffs / Parties (' + d.plaintiffs.length + ')</h2>';
+    h += '<div>';
+    for (const p of d.plaintiffs) {
+      h += '<span class="tag">' + esc(p.name) + '</span>';
+    }
+    h += '</div>';
+  }
+
+  // Cases with pagination
+  for (const r of d.api_results) {
+    if (!r.cases || !r.cases.length) continue;
+    h += '<h2>' + esc(r.source) + ' (' + r.cases.length + ' shown)</h2>';
+
+    // Pagination controls
+    const totalItems = r.cases.length;
+    const totalPages = Math.ceil(totalItems / perPage);
+    const startIdx = (currentPage - 1) * perPage;
+    const pageItems = r.cases.slice(startIdx, startIdx + perPage);
+
+    if (r.source.includes('SEC')) {
+      h += '<table><tr><th>Entity</th><th>Description</th><th>Form</th><th>Date</th></tr>';
+      for (const c of pageItems) {
+        h += '<tr><td>' + esc(c.plaintiff || c.entity || '') + '</td>';
+        h += '<td>' + esc(c.file_description || '') + '</td>';
+        h += '<td>' + esc(c.form_type || '') + '</td>';
+        h += '<td>' + esc(c.file_date || '') + '</td></tr>';
+      }
+    } else {
+      h += '<table><tr><th>Case Name</th><th>Plaintiff</th><th>Court</th><th>Filed</th><th>Docket</th></tr>';
+      for (const c of pageItems) {
+        h += '<tr><td>' + esc(c.name || '') + '</td>';
+        h += '<td>' + esc(c.plaintiff || '—') + '</td>';
+        h += '<td>' + esc(c.court || '') + '</td>';
+        h += '<td>' + esc(c.date_filed || '') + '</td>';
+        h += '<td>' + esc(c.docket_number || '') + '</td></tr>';
+      }
+    }
+    h += '</table>';
+
+    if (totalPages > 1) {
+      h += renderPagination(currentPage, totalPages, totalItems, perPage);
+    }
+  }
+
+  // Manual search links
+  if (d.manual_search_urls && d.manual_search_urls.length) {
+    h += '<h2>Manual Search Links</h2>';
+    for (const s of d.manual_search_urls) {
+      h += '<div class="manual"><strong>' + esc(s.source) + '</strong>: ';
+      h += '<a class="url" href="' + esc(s.url) + '" target="_blank">' + esc(s.note) + '</a></div>';
+    }
+  }
+
+  // Downloads
+  const qe = encodeURIComponent(d.query);
+  h += '<div class="downloads">';
+  h += '<a class="btn btn-sm" href="/legal/download/json?q=' + qe + '">Download JSON</a>';
+  h += '<a class="btn btn-sm" href="/legal/download/xlsx?q=' + qe + '">Download Excel</a>';
+  h += '</div>';
+
+  el.innerHTML = h;
+}
+
+function renderPagination(page, totalPages, totalItems, pp) {
+  const start = (page - 1) * pp + 1;
+  const end = Math.min(page * pp, totalItems);
+  let h = '<div class="pag">';
+  h += '<button ' + (page <= 1 ? 'disabled' : 'onclick="goPage(' + (page-1) + ')"') + '>&laquo; Prev</button>';
+  const maxBtn = 7;
+  let pStart = Math.max(1, page - 3);
+  let pEnd = Math.min(totalPages, pStart + maxBtn - 1);
+  if (pEnd - pStart < maxBtn - 1) pStart = Math.max(1, pEnd - maxBtn + 1);
+  for (let p = pStart; p <= pEnd; p++) {
+    h += '<button class="' + (p === page ? 'active' : '') + '" onclick="goPage(' + p + ')">' + p + '</button>';
+  }
+  h += '<button ' + (page >= totalPages ? 'disabled' : 'onclick="goPage(' + (page+1) + ')"') + '>Next &raquo;</button>';
+  h += '<select class="per-page-select" onchange="changePerPage(this.value)">';
+  for (const pp of [10, 25, 50]) {
+    h += '<option value="' + pp + '"' + (pp === perPage ? ' selected' : '') + '>' + pp + ' / page</option>';
+  }
+  h += '</select>';
+  h += '<span class="pag-info">Showing ' + start + '–' + end + ' of ' + totalItems + '</span>';
+  h += '</div>';
+  return h;
+}
+
+function goPage(p) {
+  currentPage = p;
+  if (allCases) render(allCases);
+  window.scrollTo({top: 200, behavior: 'smooth'});
+}
+
+function changePerPage(val) {
+  perPage = parseInt(val);
+  currentPage = 1;
+  if (allCases) render(allCases);
+}
+</script>
+{% endblock %}

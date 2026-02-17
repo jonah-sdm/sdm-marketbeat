@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block title %}Digital Asset Treasury &amp; Finance — SDM{% endblock %}
+
+{% block content %}
+<div class="content wide">
+
+<!-- LIST VIEW -->
+<div id="list-section">
+<div class="breadcrumb">
+  <a href="/">Home</a><span class="sep">&rsaquo;</span>Digital Asset Treasury &amp; Finance
+</div>
+
+<h1>Digital Asset Treasury &amp; Finance</h1>
+<p class="sub">Locate treasury and finance decision-makers at companies with verified cryptocurrency holdings.</p>
+
+{% if not api_ok %}
+<div class="warning">
+  <strong>Note:</strong> Apollo.io API key not configured — company list still works, but contact lookup requires an API key.<br>
+  Set <code>APOLLO_API_KEY</code> in your <code>.env</code> file. <a href="https://app.apollo.io/#/settings/integrations/api_keys" target="_blank">Get a key</a>
+</div>
+{% endif %}
+
+<div class="summary-bar" id="summary-bar"></div>
+
+<div class="filter-bar">
+  <input type="text" id="filter" placeholder="Search companies by name or ticker..." autofocus>
+  <select id="sortBy">
+    <option value="btc_holdings" selected>Sort by BTC Holdings</option>
+    <option value="usd_value">Sort by USD Value</option>
+    <option value="market_cap">Sort by Market Cap</option>
+    <option value="name">Sort by Name</option>
+  </select>
+  <select id="perPage" style="width:auto;">
+    <option value="10" selected>10 / page</option>
+    <option value="25">25 / page</option>
+    <option value="50">50 / page</option>
+  </select>
+  <button class="btn-outline" onclick="showTop100()">Top 100 Holdings</button>
+</div>
+
+<div id="company-list">
+  <div class="progress">Loading Bitcoin treasury data...</div>
+</div>
+</div>
+
+<!-- DETAIL VIEW -->
+<div id="detail-section" style="display:none">
+<div class="breadcrumb">
+  <a href="/">Home</a><span class="sep">&rsaquo;</span><a href="#" onclick="showList(); return false;">Treasury &amp; Finance</a><span class="sep">&rsaquo;</span><span id="bc-company"></span>
+</div>
+<a href="#" class="back-link" onclick="showList(); return false;">&larr; Back to company list</a>
+
+<div class="company-detail" id="holdings-card"></div>
+
+<div style="display:flex; gap:8px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+  <h2 style="margin:0">Finance &amp; Treasury Contacts</h2>
+  <select id="role" style="font-size:13px;">
+    <option value="all" selected>All finance roles</option>
+    <option value="treasury">Treasury roles</option>
+    <option value="cfo">CFO / Finance heads</option>
+  </select>
+  <button class="btn-sm" onclick="loadContacts()" id="btn-refresh">Refresh</button>
+  <span class="spinner" id="contact-spin">Searching Apollo...</span>
+</div>
+<div id="contacts"></div>
+<div id="detail-downloads" class="downloads" style="display:none;"></div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allCompanies = [];
+let btcPrice = null;
+let currentCompany = null;
+let currentPeople = [];
+let currentPage = 1;
+let perPage = 10;
+let showingTop100 = false;
+const apiOk = {{ 'true' if api_ok else 'false' }};
+
+// Load companies on page load
+async function loadCompanies() {
+  try {
+    document.getElementById('company-list').innerHTML = skeletonRows(8);
+    const r = await fetch('/treasury/api/bt-companies');
+    if (!r.ok) {
+      document.getElementById('company-list').innerHTML = '<div class="error">Server returned ' + r.status + '. <button class="btn-sm" onclick="loadCompanies()">Retry</button></div>';
+      return;
+    }
+    const d = await r.json();
+    if (d.error) {
+      document.getElementById('company-list').innerHTML = '<div class="error">' + esc(d.error) + ' <button class="btn-sm" onclick="loadCompanies()">Retry</button></div>';
+      return;
+    }
+    allCompanies = d.companies || [];
+    btcPrice = d.btc_price;
+    renderSummary();
+    renderList();
+  } catch(err) {
+    document.getElementById('company-list').innerHTML = '<div class="error">Failed to load: ' + esc(String(err)) + ' <button class="btn-sm" onclick="loadCompanies()">Retry</button></div>';
+  }
+}
+
+function renderSummary() {
+  const totalBtc = allCompanies.reduce((s, c) => s + c.btc_holdings, 0);
+  const totalUsd = btcPrice ? totalBtc * btcPrice : null;
+  let h = '';
+  h += '<div class="summary-stat"><div class="label">Companies</div><div class="value">' + allCompanies.length + '</div></div>';
+  h += '<div class="summary-stat"><div class="label">Total BTC Held</div><div class="value">' + fmtBtc(totalBtc) + '</div></div>';
+  if (totalUsd) h += '<div class="summary-stat"><div class="label">Total USD Value</div><div class="value">' + fmtUsd(totalUsd) + '</div></div>';
+  if (btcPrice) h += '<div class="summary-stat"><div class="label">BTC Price</div><div class="value">' + fmtUsd(btcPrice) + '</div></div>';
+  document.getElementById('summary-bar').innerHTML = h;
+}
+
+function renderList() {
+  const q = document.getElementById('filter').value.toLowerCase().trim();
+  const sortKey = document.getElementById('sortBy').value;
+  let filtered = allCompanies;
+
+  if (showingTop100) {
+    filtered = allCompanies.slice(0, 100);
+  }
+
+  if (q) {
+    filtered = filtered.filter(c =>
+      c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q)
+    );
+  }
+
+  filtered = [...filtered].sort((a, b) => {
+    if (sortKey === 'name') return a.name.localeCompare(b.name);
+    return (b[sortKey] || 0) - (a[sortKey] || 0);
+  });
+
+  if (!filtered.length) {
+    document.getElementById('company-list').innerHTML = '<div class="info">No companies match your filter.</div>';
+    return;
+  }
+
+  const totalPages = Math.ceil(filtered.length / perPage);
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * perPage;
+  const pageData = filtered.slice(start, start + perPage);
+
+  let h = '<table class="holdings-table"><tr>';
+  h += '<th>#</th><th>Company</th><th>Ticker</th><th>Country</th>';
+  h += '<th style="text-align:right">BTC Holdings</th>';
+  h += '<th style="text-align:right">USD Value</th>';
+  h += '<th style="text-align:right">Market Cap</th>';
+  h += '<th></th></tr>';
+
+  for (const c of pageData) {
+    h += '<tr onclick="showDetail(\'' + esc(c.symbol).replace(/'/g, "\\'") + '\')">';
+    h += '<td class="meta">' + c.rank + '</td>';
+    h += '<td><strong>' + esc(c.name) + '</strong></td>';
+    h += '<td>' + esc(c.symbol) + '</td>';
+    h += '<td class="meta">' + esc(c.country) + '</td>';
+    h += '<td class="num">' + fmtBtc(c.btc_holdings) + '</td>';
+    h += '<td class="num">' + (c.usd_value ? fmtUsd(c.usd_value) : '—') + '</td>';
+    h += '<td class="num">' + (c.market_cap ? fmtUsd(c.market_cap) : '—') + '</td>';
+    h += '<td><button class="btn-contact" onclick="event.stopPropagation(); showDetail(\'' + esc(c.symbol).replace(/'/g, "\\'") + '\')">View Contacts</button></td>';
+    h += '</tr>';
+  }
+  h += '</table>';
+
+  // Pagination
+  h += '<div class="pag">';
+  h += '<button ' + (currentPage <= 1 ? 'disabled' : 'onclick="goPage(' + (currentPage-1) + ')"') + '>&laquo; Prev</button>';
+  const maxBtn = 7;
+  let pStart = Math.max(1, currentPage - 3);
+  let pEnd = Math.min(totalPages, pStart + maxBtn - 1);
+  if (pEnd - pStart < maxBtn - 1) pStart = Math.max(1, pEnd - maxBtn + 1);
+  for (let p = pStart; p <= pEnd; p++) {
+    h += '<button class="' + (p === currentPage ? 'active' : '') + '" onclick="goPage(' + p + ')">' + p + '</button>';
+  }
+  h += '<button ' + (currentPage >= totalPages ? 'disabled' : 'onclick="goPage(' + (currentPage+1) + ')"') + '>Next &raquo;</button>';
+  h += '<span class="pag-info">' + (showingTop100 ? 'Top 100 — ' : '') + 'Showing ' + (start+1) + '–' + Math.min(start+perPage, filtered.length) + ' of ' + filtered.length + '</span>';
+  h += '</div>';
+
+  document.getElementById('company-list').innerHTML = h;
+}
+
+function goPage(p) {
+  currentPage = p;
+  renderList();
+  document.getElementById('company-list').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+function resetPage() {
+  currentPage = 1;
+  showingTop100 = false;
+  renderList();
+}
+
+function showTop100() {
+  showingTop100 = !showingTop100;
+  currentPage = 1;
+  renderList();
+}
+
+// Detail view
+function showDetail(symbol) {
+  currentCompany = allCompanies.find(c => c.symbol === symbol);
+  if (!currentCompany) return;
+  currentPeople = [];
+
+  document.getElementById('list-section').style.display = 'none';
+  document.getElementById('detail-section').style.display = '';
+  document.getElementById('bc-company').textContent = currentCompany.name;
+
+  let h = '<h2>' + esc(currentCompany.name) + ' <span class="meta">(' + esc(currentCompany.symbol) + ')</span></h2>';
+  h += '<div class="holdings-grid">';
+  h += gridItem('BTC Holdings', fmtBtc(currentCompany.btc_holdings));
+  h += gridItem('USD Value', currentCompany.usd_value ? fmtUsd(currentCompany.usd_value) : '—');
+  h += gridItem('Market Cap', currentCompany.market_cap ? fmtUsd(currentCompany.market_cap) : '—');
+  h += gridItem('Rank', '#' + currentCompany.rank);
+  h += gridItem('Country', currentCompany.country || '—');
+  if (currentCompany.stock_price) h += gridItem('Stock Price', '$' + currentCompany.stock_price);
+  if (currentCompany.mnav) h += gridItem('mNAV', currentCompany.mnav);
+  if (currentCompany.btc_yield) h += gridItem('BTC Yield', currentCompany.btc_yield + '%');
+  if (currentCompany.avg_cost_basis) h += gridItem('Avg Cost Basis', '$' + Number(currentCompany.avg_cost_basis).toLocaleString());
+  h += '</div>';
+  if (currentCompany.last_updated) {
+    h += '<div class="meta">Last updated: ' + esc(currentCompany.last_updated.split('T')[0]) + '</div>';
+  }
+  document.getElementById('holdings-card').innerHTML = h;
+
+  if (apiOk) {
+    loadContacts();
+  } else {
+    document.getElementById('contacts').innerHTML = '<div class="info">Apollo.io API key not configured. Add APOLLO_API_KEY to .env to enable contact lookup.</div>';
+  }
+}
+
+async function loadContacts() {
+  if (!currentCompany) return;
+  const role = document.getElementById('role').value;
+  const spin = document.getElementById('contact-spin');
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true; spin.style.display = 'inline';
+  document.getElementById('contacts').innerHTML = '<div class="progress">Searching for finance/treasury contacts at ' + esc(currentCompany.name) + '...</div>' + skeletonRows(4);
+  document.getElementById('detail-downloads').style.display = 'none';
+
+  try {
+    const params = new URLSearchParams({company: currentCompany.name, role: role});
+    const r = await fetch('/treasury/api/people?' + params);
+    const d = await r.json();
+    if (d.error) {
+      document.getElementById('contacts').innerHTML = '<div class="error">' + esc(d.error) + '</div>';
+    } else {
+      currentPeople = d.people;
+      renderContacts(d.people);
+    }
+  } catch(err) {
+    document.getElementById('contacts').innerHTML = '<div class="error">' + esc(String(err)) + '</div>';
+  }
+  btn.disabled = false; spin.style.display = 'none';
+}
+
+function renderContacts(people) {
+  if (!people.length) {
+    document.getElementById('contacts').innerHTML = '<div class="info">No matching treasury/finance contacts found at this company. Try a different role filter.</div>';
+    document.getElementById('detail-downloads').style.display = 'none';
+    return;
+  }
+
+  // Paginate contacts
+  const totalPages = Math.ceil(people.length / 10);
+  let contactPage = 1;
+
+  function renderContactPage(pg) {
+    const pp = 10;
+    const start = (pg - 1) * pp;
+    const pageItems = people.slice(start, start + pp);
+
+    let h = '<div class="stats">Found <strong>' + people.length + '</strong> contacts</div>';
+    h += '<table><tr><th>Name</th><th>Title</th><th>Seniority</th><th>Location</th><th>Links</th></tr>';
+    for (const p of pageItems) {
+      const loc = [p.city, p.state, p.country].filter(Boolean).join(', ');
+      const links = [];
+      if (p.linkedin_url) links.push('<a href="' + esc(p.linkedin_url) + '" target="_blank">LinkedIn</a>');
+      h += '<tr>';
+      h += '<td><strong>' + esc(p.name) + '</strong>';
+      if (p.email && p.email_status !== 'unavailable') h += '<br><span class="meta">' + esc(p.email) + '</span>';
+      if (p.phone) h += '<br><span class="meta">' + esc(p.phone) + '</span>';
+      if (p.departments && p.departments.length) h += '<br>' + p.departments.map(x => '<span class="tag">' + esc(x) + '</span>').join(' ');
+      h += '</td>';
+      h += '<td>' + esc(p.title) + '</td>';
+      h += '<td>' + (p.seniority ? '<span class="tag">' + esc(p.seniority) + '</span>' : '—') + '</td>';
+      h += '<td class="meta">' + esc(loc) + '</td>';
+      h += '<td>' + links.join(' ') + '</td>';
+      h += '</tr>';
+    }
+    h += '</table>';
+    document.getElementById('contacts').innerHTML = h;
+  }
+
+  renderContactPage(1);
+
+  // Downloads
+  const role = document.getElementById('role').value;
+  const params = new URLSearchParams({company: currentCompany.name, symbol: currentCompany.symbol, role: role});
+  let dl = '<a class="btn btn-sm" href="/treasury/api/download/xlsx?' + params + '">Download Excel</a>';
+  dl += '<a class="btn btn-sm" href="/treasury/api/download/json?' + params + '">Download JSON</a>';
+  document.getElementById('detail-downloads').innerHTML = dl;
+  document.getElementById('detail-downloads').style.display = '';
+}
+
+function showList() {
+  document.getElementById('detail-section').style.display = 'none';
+  document.getElementById('list-section').style.display = '';
+  currentCompany = null;
+  currentPeople = [];
+}
+
+function fmtBtc(n) {
+  if (!n && n !== 0) return '—';
+  return Number(n).toLocaleString() + ' BTC';
+}
+
+function fmtUsd(n) {
+  if (!n && n !== 0) return '—';
+  if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
+  return '$' + Number(n).toLocaleString();
+}
+
+function gridItem(label, val) {
+  return '<div class="item"><div class="label">' + label + '</div><div class="val">' + val + '</div></div>';
+}
+
+// Event listeners
+document.getElementById('filter').addEventListener('input', debounce(resetPage, 300));
+document.getElementById('sortBy').addEventListener('change', resetPage);
+document.getElementById('perPage').addEventListener('change', function() {
+  perPage = parseInt(this.value);
+  currentPage = 1;
+  renderList();
+});
+document.getElementById('role').addEventListener('change', function() {
+  if (currentCompany && apiOk) loadContacts();
+});
+
+// Init
+loadCompanies();
+</script>
+{% endblock %}

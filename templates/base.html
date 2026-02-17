@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>{% block title %}SDM Industry Search Engine{% endblock %}</title>
+<link rel="stylesheet" href="/static/css/style.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+<nav class="nav">
+  <a href="/" class="nav-brand">SDM Industry Search Engine</a>
+  <div class="nav-links">
+    <a href="/legal" class="{% if active == 'legal' %}active{% endif %}">Legal &amp; Litigation</a>
+    <a href="/treasury" class="{% if active == 'treasury' %}active{% endif %}">Treasury &amp; Finance</a>
+    <a href="/events" class="{% if active == 'events' %}active{% endif %}">Event Intelligence</a>
+  </div>
+</nav>
+{% block content %}{% endblock %}
+<script>
+function esc(s) {
+  if (!s) return '';
+  const el = document.createElement('div');
+  el.textContent = s;
+  return el.innerHTML;
+}
+function skeletonRows(n) {
+  let h = '';
+  for (let i = 0; i < n; i++) {
+    h += '<div class="skel-row"><div><div class="skeleton w80"></div></div><div><div class="skeleton w40"></div></div><div><div class="skeleton w60"></div></div></div>';
+  }
+  return h;
+}
+function debounce(fn, ms) {
+  let t; return function(...a) { clearTimeout(t); t = setTimeout(() => fn.apply(this, a), ms); };
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

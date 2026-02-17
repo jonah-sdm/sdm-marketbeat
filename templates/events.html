@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Event Intelligence — SDM{% endblock %}
+
+{% block content %}
+<div class="content wide">
+<div class="breadcrumb">
+  <a href="/">Home</a><span class="sep">&rsaquo;</span>Event Intelligence
+</div>
+
+<h1>Event Intelligence</h1>
+<p class="sub">Extract publicly visible attendee information from Luma event pages and enrich with professional contact data from Apollo.io.</p>
+
+{% if not api_ok %}
+<div class="warning">
+  <strong>Note:</strong> Apollo.io API key not configured — attendee scraping works, but contact enrichment requires an API key.<br>
+  Set <code>APOLLO_API_KEY</code> in your <code>.env</code> file.
+</div>
+{% endif %}
+
+<form id="f">
+  <div class="row">
+    <input type="url" id="url" class="wide" placeholder="Paste Luma event URL (e.g. https://lu.ma/your-event)..." autofocus>
+    <label style="display:flex; align-items:center; gap:4px; font-size:13px; color:#64748b;">
+      <input type="checkbox" id="enrich" {% if api_ok %}checked{% endif %} {% if not api_ok %}disabled{% endif %}>
+      Enrich with Apollo
+    </label>
+    <button type="submit" id="btn">Scan Event</button>
+    <span class="spinner" id="spin">Scanning...</span>
+  </div>
+</form>
+
+<div id="results"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let eventData = null;
+let currentPage = 1;
+let perPage = 10;
+
+document.getElementById('f').addEventListener('submit', function(e) {
+  e.preventDefault();
+  scanEvent();
+});
+
+async function scanEvent() {
+  const url = document.getElementById('url').value.trim();
+  if (!url) { alert('Paste a Luma event URL'); return; }
+  if (!url.includes('lu.ma')) {
+    if (!confirm('This URL does not appear to be a Luma event. Continue anyway?')) return;
+  }
+  const btn = document.getElementById('btn');
+  const spin = document.getElementById('spin');
+  const enrich = document.getElementById('enrich').checked;
+  btn.disabled = true;
+  spin.style.display = 'inline';
+  spin.textContent = 'Scanning event page...';
+  document.getElementById('results').innerHTML = '<div class="progress">Fetching event data and attendee list...</div>' + skeletonRows(6);
+
+  try {
+    const params = new URLSearchParams({url: url, enrich: enrich ? '1' : '0'});
+    const r = await fetch('/events/scan?' + params);
+    const d = await r.json();
+    if (d.error) {
+      document.getElementById('results').innerHTML = '<div class="error">' + esc(d.error) + '</div>';
+    } else {
+      eventData = d;
+      currentPage = 1;
+      renderResults(d);
+    }
+  } catch(err) {
+    document.getElementById('results').innerHTML = '<div class="error">Request failed: ' + esc(String(err)) + '</div>';
+  }
+  btn.disabled = false;
+  spin.style.display = 'none';
+}
+
+function renderResults(d) {
+  let h = '';
+
+  // Breadcrumb
+  h += '<div class="breadcrumb"><a href="/">Home</a><span class="sep">&rsaquo;</span><a href="/events">Event Intelligence</a><span class="sep">&rsaquo;</span>' + esc(d.event.name || 'Event Results') + '</div>';
+
+  // Event card
+  h += '<div class="event-card">';
+  h += '<h2>' + esc(d.event.name) + '</h2>';
+  h += '<div class="event-meta">';
+  if (d.event.date) h += '<div class="item"><strong>Date:</strong> ' + esc(d.event.date) + '</div>';
+  if (d.event.time) h += '<div class="item"><strong>Time:</strong> ' + esc(d.event.time) + '</div>';
+  if (d.event.location) h += '<div class="item"><strong>Location:</strong> ' + esc(d.event.location) + '</div>';
+  if (d.event.host) h += '<div class="item"><strong>Host:</strong> ' + esc(d.event.host) + '</div>';
+  h += '</div>';
+  if (d.event.description) {
+    h += '<p style="font-size:13px; color:#64748b; line-height:1.5; margin-top:8px;">' + esc(d.event.description).substring(0, 300);
+    if (d.event.description.length > 300) h += '...';
+    h += '</p>';
+  }
+  h += '<div class="stats" style="margin-top:12px;"><strong>' + d.attendees.length + '</strong> attendees found';
+  if (d.enriched_count) h += ' | <strong>' + d.enriched_count + '</strong> enriched with contact data';
+  h += '</div>';
+  h += '</div>';
+
+  // Attendee list with pagination
+  const attendees = d.attendees;
+  const totalPages = Math.ceil(attendees.length / perPage);
+  if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
+  const start = (currentPage - 1) * perPage;
+  const pageItems = attendees.slice(start, start + perPage);
+
+  h += '<div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">';
+  h += '<h2 style="margin:0">Attendees</h2>';
+  h += '<select class="per-page-select" onchange="changePerPage(this.value)">';
+  for (const pp of [10, 25, 50]) {
+    h += '<option value="' + pp + '"' + (pp === perPage ? ' selected' : '') + '>' + pp + ' / page</option>';
+  }
+  h += '</select>';
+  h += '</div>';
+
+  if (d.enriched_count > 0) {
+    // Table view for enriched data
+    h += '<table><tr><th>Name</th><th>Title</th><th>Company</th><th>Email</th><th>Phone</th><th>Links</th></tr>';
+    for (const a of pageItems) {
+      const links = [];
+      if (a.linkedin_url) links.push('<a href="' + esc(a.linkedin_url) + '" target="_blank">LinkedIn</a>');
+      h += '<tr>';
+      h += '<td><strong>' + esc(a.name) + '</strong></td>';
+      h += '<td>' + esc(a.title || a.role || '') + '</td>';
+      h += '<td>' + esc(a.company || '') + '</td>';
+      h += '<td class="meta">' + esc(a.email || '') + '</td>';
+      h += '<td class="meta">' + esc(a.phone || '') + '</td>';
+      h += '<td>' + links.join(' ') + '</td>';
+      h += '</tr>';
+    }
+    h += '</table>';
+  } else {
+    // Card view for basic attendee data
+    h += '<div class="attendee-cards">';
+    for (const a of pageItems) {
+      h += '<div class="attendee-card">';
+      h += '<div class="name">' + esc(a.name) + '</div>';
+      if (a.role) h += '<div class="role">' + esc(a.role) + '</div>';
+      if (a.company) h += '<div class="company">' + esc(a.company) + '</div>';
+      if (a.linkedin_url) h += '<div class="contact-info"><a href="' + esc(a.linkedin_url) + '" target="_blank">LinkedIn</a></div>';
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+
+  // Pagination
+  if (totalPages > 1) {
+    h += '<div class="pag">';
+    h += '<button ' + (currentPage <= 1 ? 'disabled' : 'onclick="goPage(' + (currentPage-1) + ')"') + '>&laquo; Prev</button>';
+    const maxBtn = 7;
+    let pStart = Math.max(1, currentPage - 3);
+    let pEnd = Math.min(totalPages, pStart + maxBtn - 1);
+    if (pEnd - pStart < maxBtn - 1) pStart = Math.max(1, pEnd - maxBtn + 1);
+    for (let p = pStart; p <= pEnd; p++) {
+      h += '<button class="' + (p === currentPage ? 'active' : '') + '" onclick="goPage(' + p + ')">' + p + '</button>';
+    }
+    h += '<button ' + (currentPage >= totalPages ? 'disabled' : 'onclick="goPage(' + (currentPage+1) + ')"') + '>Next &raquo;</button>';
+    h += '<span class="pag-info">Showing ' + (start+1) + '–' + Math.min(start+perPage, attendees.length) + ' of ' + attendees.length + '</span>';
+    h += '</div>';
+  }
+
+  // Downloads
+  const urlEnc = encodeURIComponent(document.getElementById('url').value.trim());
+  h += '<div class="downloads">';
+  h += '<a class="btn btn-sm" href="/events/download/xlsx?url=' + urlEnc + '&enrich=' + (document.getElementById('enrich').checked ? '1' : '0') + '">Download Excel</a>';
+  h += '<a class="btn btn-sm" href="/events/download/json?url=' + urlEnc + '">Download JSON</a>';
+  h += '</div>';
+
+  document.getElementById('results').innerHTML = h;
+}
+
+function goPage(p) {
+  currentPage = p;
+  if (eventData) renderResults(eventData);
+  window.scrollTo({top: 300, behavior: 'smooth'});
+}
+
+function changePerPage(val) {
+  perPage = parseInt(val);
+  currentPage = 1;
+  if (eventData) renderResults(eventData);
+}
+</script>
+{% endblock %}

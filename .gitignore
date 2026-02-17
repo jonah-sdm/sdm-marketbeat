@@ -1,0 +1,17 @@
+.env
+__pycache__/
+*.pyc
+*.xlsx
+*.json
+*.pdf
+*.zip
+~$*
+!.env.example
+
+# Personal files — do not commit
+Oct:Nov Outstanding invoices*
+SDM Sept Expenses*
+PayPort*
+Eric Situ*
+web_search.py
+apollo_search.py
