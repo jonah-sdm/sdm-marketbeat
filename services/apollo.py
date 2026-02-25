@@ -77,7 +77,7 @@ def match_person_at_company(company_name, company_domain, title):
     body = {
         "organization_name": company_name,
         "title": title,
-        "reveal_personal_emails": False,
+        "reveal_personal_emails": True,
     }
     if company_domain:
         body["organization_domain"] = company_domain
@@ -152,7 +152,7 @@ def find_people_at_companies(companies, titles, max_companies=10):
 # Look up a person by first/last name (and optionally company) via Apollo /people/match.
 # Used by Event Intelligence to enrich attendee names with contact details.
 def enrich_person_by_name(name, company=None):
-    body = {"reveal_personal_emails": False}
+    body = {"reveal_personal_emails": True}
     parts = name.strip().split()
     if len(parts) >= 2:
         body["first_name"] = parts[0]
