@@ -3,7 +3,7 @@ services:
     name: sdm-search-engine
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --timeout 60 --preload
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --timeout 60 --preload
     healthCheckPath: /health
     envVars:
       - key: APOLLO_API_KEY
