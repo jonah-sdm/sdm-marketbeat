@@ -498,6 +498,14 @@ a.url {
   margin: 0 0 10px;
 }
 
+.card .tagline {
+  font-size: 13px;
+  font-weight: 600;
+  font-style: italic;
+  color: #1a1f36;
+  margin-bottom: 6px;
+}
+
 .card p {
   font-size: 12px;
   color: #64748b;

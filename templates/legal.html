@@ -4,16 +4,16 @@
 {% block content %}
 <div class="content">
 <div class="breadcrumb">
-  <a href="/">Home</a><span class="sep">&rsaquo;</span>Legal &amp; Litigation Intelligence
+  <a href="/">Home</a><span class="sep">&rsaquo;</span>Legal &amp; Litigation Intel
 </div>
 
-<h1>Legal &amp; Litigation Intelligence</h1>
-<p class="sub">Search federal court records, SEC filings, and case law databases for cryptocurrency litigation and bankruptcy cases.</p>
+<h1>Legal &amp; Litigation Intel</h1>
+<p class="sub">A company under legal pressure is a company with problems to solve. Find the cases, find the parties, find your angle.</p>
 
 <form id="f">
   <div class="row">
-    <input type="text" id="q" name="q" class="wide" placeholder="Enter company name (e.g. FTX, Celsius, BlockFi)..." autofocus>
-    <button type="submit" id="btn">Search</button>
+    <input type="text" id="q" name="q" class="wide" placeholder="Enter a company name to investigate..." autofocus>
+    <button type="submit" id="btn">Investigate</button>
     <span class="spinner" id="spin">Searching...</span>
   </div>
   <div class="checkbox-row" style="margin-bottom:16px;">
@@ -72,7 +72,7 @@ function render(d) {
   h += '<div class="breadcrumb"><a href="/">Home</a><span class="sep">&rsaquo;</span><a href="/legal">Legal &amp; Litigation</a><span class="sep">&rsaquo;</span>Results for "' + esc(d.query) + '"</div>';
 
   // Summary table
-  h += '<h2>Source Summary</h2>';
+  h += '<h2>Cases Found</h2>';
   h += '<table><tr><th>Source</th><th>Cases</th><th>Status</th></tr>';
   let total = 0;
   for (const r of d.api_results) {
@@ -90,7 +90,7 @@ function render(d) {
 
   // Plaintiffs
   if (d.plaintiffs && d.plaintiffs.length) {
-    h += '<h2>Plaintiffs / Parties (' + d.plaintiffs.length + ')</h2>';
+    h += '<h2>Who\'s Fighting Them (' + d.plaintiffs.length + ')</h2>';
     h += '<div>';
     for (const p of d.plaintiffs) {
       h += '<span class="tag">' + esc(p.name) + '</span>';
@@ -136,7 +136,7 @@ function render(d) {
 
   // Manual search links
   if (d.manual_search_urls && d.manual_search_urls.length) {
-    h += '<h2>Manual Search Links</h2>';
+    h += '<h2>Dig Deeper</h2>';
     for (const s of d.manual_search_urls) {
       h += '<div class="manual"><strong>' + esc(s.source) + '</strong>: ';
       h += '<a class="url" href="' + esc(s.url) + '" target="_blank">' + esc(s.note) + '</a></div>';
