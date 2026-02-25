@@ -4,4 +4,3 @@ requests>=2.31
 beautifulsoup4>=4.12
 openpyxl>=3.1
 python-dotenv>=1.0
-requests-html>=0.10

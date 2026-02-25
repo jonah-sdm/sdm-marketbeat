@@ -20,6 +20,7 @@ Search URLs generated (manual/subscription):
 """
 
 import json
+import os
 import re
 import sys
 import subprocess
@@ -42,7 +43,7 @@ from urllib3.util.retry import Retry
 # To enable CanLII searches:
 #   1. Register at https://developer.canlii.org/
 #   2. Paste your API key below
-CANLII_API_KEY = ""  # <-- ADD YOUR KEY HERE
+CANLII_API_KEY = os.environ.get("CANLII_API_KEY", "").strip()
 
 
 # ─────────────────────────────────────────────────────────────────────────
