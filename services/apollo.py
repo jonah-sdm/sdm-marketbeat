@@ -89,12 +89,12 @@ def match_person_at_company(company_name, company_domain, title):
     if not person:
         return None
 
+    print(f"[Apollo] match_person_at_company result: {person}")
+
     org = person.get("organization", {}) or {}
-    first = person.get("first_name", "")
-    last = person.get("last_name", "")
     name = person.get("name", "")
-    if not name and (first or last):
-        name = f"{first} {last}".strip()
+    if not name:
+        name = f"{person.get('first_name', '')} {person.get('last_name', '')}".strip()
 
     emp = person.get("employment_history", [])
     current_role = ""

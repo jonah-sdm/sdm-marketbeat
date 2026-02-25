@@ -276,21 +276,19 @@ function renderContacts(people) {
     const pageItems = people.slice(start, start + pp);
 
     let h = '<div class="stats">Found <strong>' + people.length + '</strong> contacts</div>';
-    h += '<table><tr><th>Name</th><th>Title</th><th>Seniority</th><th>Location</th><th>Links</th></tr>';
+    h += '<table><tr><th>Name</th><th>Title</th><th>Company</th><th>Location</th><th>Contact</th></tr>';
     for (const p of pageItems) {
-      const loc = [p.city, p.state, p.country].filter(Boolean).join(', ');
-      const links = [];
-      if (p.linkedin_url) links.push('<a href="' + esc(p.linkedin_url) + '" target="_blank">LinkedIn</a>');
+      const loc = [p.city, p.country].filter(Boolean).join(', ');
       h += '<tr>';
-      h += '<td><strong>' + esc(p.name) + '</strong>';
-      if (p.email && p.email_status !== 'unavailable') h += '<br><span class="meta">' + esc(p.email) + '</span>';
-      if (p.phone) h += '<br><span class="meta">' + esc(p.phone) + '</span>';
-      if (p.departments && p.departments.length) h += '<br>' + p.departments.map(x => '<span class="tag">' + esc(x) + '</span>').join(' ');
-      h += '</td>';
+      h += '<td><strong>' + esc(p.name) + '</strong></td>';
       h += '<td>' + esc(p.title) + '</td>';
-      h += '<td>' + (p.seniority ? '<span class="tag">' + esc(p.seniority) + '</span>' : '—') + '</td>';
+      h += '<td>' + esc(p.company || '') + '</td>';
       h += '<td class="meta">' + esc(loc) + '</td>';
-      h += '<td>' + links.join(' ') + '</td>';
+      h += '<td class="contact-icons">';
+      if (p.email && p.email_status !== 'unavailable') h += '<a href="mailto:' + esc(p.email) + '" title="' + esc(p.email) + '">&#9993;</a> ';
+      if (p.linkedin_url) h += '<a href="' + esc(p.linkedin_url) + '" target="_blank" title="LinkedIn">&#128279;</a> ';
+      if (p.phone) h += '<a href="tel:' + esc(p.phone) + '" title="' + esc(p.phone) + '">&#9742;</a>';
+      h += '</td>';
       h += '</tr>';
     }
     h += '</table>';

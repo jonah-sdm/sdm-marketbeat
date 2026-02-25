@@ -243,6 +243,15 @@ th[style*="text-align:right"] {
 
 /* ── Tags / Badges ──────────────────────────────────────── */
 
+.contact-icons a {
+  font-size: 18px;
+  text-decoration: none;
+  margin-right: 6px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.contact-icons a:hover { opacity: 1; }
+
 .tag {
   display: inline-block;
   font-size: 10px;
