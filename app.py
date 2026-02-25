@@ -55,10 +55,10 @@ import threading
 if os.environ.get("RENDER") is None:
     _REQUIRED = [
         "flask", "requests", "beautifulsoup4", "openpyxl",
-        "python-dotenv", "requests-html",
+        "python-dotenv",
     ]
     for pkg in _REQUIRED:
-        _import = pkg.replace("beautifulsoup4", "bs4").replace("python-dotenv", "dotenv").replace("requests-html", "requests_html")
+        _import = pkg.replace("beautifulsoup4", "bs4").replace("python-dotenv", "dotenv")
         try:
             __import__(_import)
         except ImportError:
