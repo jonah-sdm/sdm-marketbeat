@@ -41,21 +41,28 @@ def bt_companies_api():
 
 @treasury_bp.route("/api/people")
 def treasury_people():
-    ok, msg = check_api_key()
-    if not ok:
-        return jsonify({"error": msg}), 400
-    company = request.args.get("company", "").strip()
-    domain = request.args.get("domain", "").strip()
-    role = request.args.get("role", "all")
-    if not company:
-        return jsonify({"error": "Company name required"}), 400
-    titles = TITLE_SETS.get(role, TREASURY_TITLES)
-    people = find_people_at_companies(
-        [{"name": company, "domain": domain}],
-        titles,
-        max_companies=1,
-    )
-    return jsonify({"people": people, "company": company, "titles_searched": len(titles)})
+    try:
+        ok, msg = check_api_key()
+        print(f"[Treasury] /api/people called — API key present: {ok}")
+        if not ok:
+            return jsonify({"error": msg}), 400
+        company = request.args.get("company", "").strip()
+        domain = request.args.get("domain", "").strip()
+        role = request.args.get("role", "all")
+        print(f"[Treasury] Looking up: company={company}, domain={domain}, role={role}")
+        if not company:
+            return jsonify({"error": "Company name required"}), 400
+        titles = TITLE_SETS.get(role, TREASURY_TITLES)
+        people = find_people_at_companies(
+            [{"name": company, "domain": domain}],
+            titles,
+            max_companies=1,
+        )
+        print(f"[Treasury] Found {len(people)} contacts for {company}")
+        return jsonify({"people": people, "company": company, "titles_searched": len(titles)})
+    except Exception as e:
+        print(f"[Treasury] ERROR in /api/people: {e}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 
 @treasury_bp.route("/api/download/json")
