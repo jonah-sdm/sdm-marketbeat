@@ -90,10 +90,11 @@ def match_person_at_company(company_name, company_domain, title):
         return None
 
     org = person.get("organization", {}) or {}
-    name = person.get("name", "")
     first = person.get("first_name", "")
-    if not name and not first:
-        name = "(name redacted — paid plan)"
+    last = person.get("last_name", "")
+    name = person.get("name", "")
+    if not name and (first or last):
+        name = f"{first} {last}".strip()
 
     emp = person.get("employment_history", [])
     current_role = ""
