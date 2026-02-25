@@ -106,7 +106,7 @@ def match_person_at_company(company_name, company_domain, title):
 
     return {
         "name": name,
-        "first_name": first,
+        "first_name": person.get("first_name", ""),
         "last_name": person.get("last_name", ""),
         "title": person.get("title", current_role or title),
         "headline": person.get("headline", ""),
