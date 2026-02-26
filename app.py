@@ -79,12 +79,10 @@ app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 from routes.legal import legal_bp
 from routes.treasury import treasury_bp
 from routes.events import events_bp
-from routes.importers import importers_bp
 
 app.register_blueprint(legal_bp)
 app.register_blueprint(treasury_bp)
 app.register_blueprint(events_bp)
-app.register_blueprint(importers_bp)
 
 
 # ── Home ─────────────────────────────────────────────────────────────────
