@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Canadian Importers Intel — SDM{% endblock %}
+
+{% block content %}
+<div class="content">
+<div class="breadcrumb">
+  <a href="/">Home</a><span class="sep">&rsaquo;</span>Canadian Importers Intel
+</div>
+
+<h1>Canadian Importers Intel</h1>
+<p class="sub">They're importing. You should be calling. Find every Canadian company importing from any country &mdash; with their website, phone, and email ready for outreach.</p>
+
+<div class="row" style="gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:16px;">
+  <div style="flex:1; min-width:200px;">
+    <label for="country" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Country of Origin</label>
+    <select id="country" style="width:100%;">
+      <option value="">Loading countries...</option>
+    </select>
+  </div>
+  <div style="width:120px;">
+    <label for="max-co" style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Max Companies</label>
+    <input type="number" id="max-co" placeholder="All" min="1" style="width:100%;">
+  </div>
+  <button class="btn" id="btn-start" onclick="startJob()">Start Search</button>
+  <button class="btn-outline" id="btn-cancel" onclick="cancelJob()" style="display:none;">Cancel</button>
+</div>
+
+<div id="progress-section" style="display:none; margin-bottom:20px;">
+  <div style="background:#e2e8f0; border-radius:6px; height:8px; overflow:hidden; margin-bottom:6px;">
+    <div id="progress-bar" style="background:#3b82f6; height:100%; width:0%; transition:width 0.3s;"></div>
+  </div>
+  <div id="status-msg" class="meta"></div>
+</div>
+
+<div id="results"></div>
+<div id="downloads" class="downloads" style="display:none;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let pollTimer = null;
+
+async function loadCountries() {
+  try {
+    const r = await fetch('/importers/api/countries');
+    const d = await r.json();
+    const sel = document.getElementById('country');
+    sel.innerHTML = '<option value="">Select a country...</option>';
+    for (const c of d.countries) {
+      sel.innerHTML += '<option value="' + esc(c) + '">' + esc(c) + '</option>';
+    }
+  } catch(err) {
+    document.getElementById('country').innerHTML = '<option value="">Failed to load countries</option>';
+  }
+}
+
+async function startJob() {
+  const country = document.getElementById('country').value;
+  if (!country) { alert('Please select a country.'); return; }
+  const maxCo = document.getElementById('max-co').value;
+  const body = { country: country };
+  if (maxCo) body.max_companies = parseInt(maxCo);
+
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-cancel').style.display = '';
+  document.getElementById('progress-section').style.display = '';
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('downloads').style.display = 'none';
+  document.getElementById('status-msg').textContent = 'Starting...';
+  document.getElementById('progress-bar').style.width = '0%';
+
+  try {
+    const r = await fetch('/importers/api/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (d.error) {
+      document.getElementById('status-msg').textContent = d.error;
+      document.getElementById('btn-start').disabled = false;
+      document.getElementById('btn-cancel').style.display = 'none';
+      return;
+    }
+    pollTimer = setInterval(pollStatus, 2000);
+  } catch(err) {
+    document.getElementById('status-msg').textContent = 'Error: ' + err;
+    document.getElementById('btn-start').disabled = false;
+    document.getElementById('btn-cancel').style.display = 'none';
+  }
+}
+
+async function pollStatus() {
+  try {
+    const r = await fetch('/importers/api/status');
+    const d = await r.json();
+    document.getElementById('status-msg').textContent = d.message;
+    if (d.total > 0) {
+      const pct = Math.round((d.progress / d.total) * 100);
+      document.getElementById('progress-bar').style.width = pct + '%';
+    } else if (d.running) {
+      // Indeterminate - pulse
+      document.getElementById('progress-bar').style.width = '30%';
+    }
+    if (!d.running || d.phase === 'complete' || d.phase === 'error' || d.phase === 'cancelled') {
+      clearInterval(pollTimer);
+      pollTimer = null;
+      document.getElementById('btn-start').disabled = false;
+      document.getElementById('btn-cancel').style.display = 'none';
+      if (d.phase === 'complete') {
+        document.getElementById('progress-bar').style.width = '100%';
+        loadResults();
+      }
+    }
+  } catch(err) {
+    // keep polling
+  }
+}
+
+async function cancelJob() {
+  try {
+    await fetch('/importers/api/cancel', { method: 'POST' });
+  } catch(err) {}
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-cancel').style.display = 'none';
+  document.getElementById('status-msg').textContent = 'Cancelled.';
+}
+
+async function loadResults() {
+  try {
+    const r = await fetch('/importers/api/results');
+    const d = await r.json();
+    const leads = d.leads || [];
+    if (!leads.length) {
+      document.getElementById('results').innerHTML = '<div class="info">No companies found.</div>';
+      return;
+    }
+    let h = '<div class="stats">Found <strong>' + leads.length + '</strong> companies</div>';
+    h += '<table><tr><th>Company</th><th>City</th><th>Province</th><th>Products</th><th>Postal Code</th><th>Business #</th></tr>';
+    for (const l of leads) {
+      const enrichment = l.enrichment || {};
+      h += '<tr>';
+      h += '<td><strong>' + esc(l.cid_company_name || '') + '</strong>';
+      if (enrichment.selected_website) h += '<br><a href="' + esc(enrichment.selected_website) + '" target="_blank" class="meta">' + esc(enrichment.selected_website) + '</a>';
+      h += '</td>';
+      h += '<td>' + esc(l.cid_city || '') + '</td>';
+      h += '<td>' + esc(l.cid_province || '') + '</td>';
+      h += '<td class="meta">' + esc(l.cid_products || '') + '</td>';
+      h += '<td>' + esc(l.cid_postal_code || '') + '</td>';
+      h += '<td>' + esc(l.cid_business_number || '') + '</td>';
+      h += '</tr>';
+    }
+    h += '</table>';
+    document.getElementById('results').innerHTML = h;
+
+    // Show downloads
+    let dl = '<a class="btn btn-sm" href="/importers/download/csv">Download CSV</a>';
+    dl += '<a class="btn btn-sm" href="/importers/download/json">Download JSON</a>';
+    document.getElementById('downloads').innerHTML = dl;
+    document.getElementById('downloads').style.display = '';
+  } catch(err) {
+    document.getElementById('results').innerHTML = '<div class="error">Failed to load results: ' + esc(String(err)) + '</div>';
+  }
+}
+
+// Init
+loadCountries();
+</script>
+{% endblock %}
