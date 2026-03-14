@@ -228,9 +228,11 @@ Return ONLY a valid JSON object (no code fences, no extra text) with exactly thi
   "calendar": { "intro": "1 sentence on upcoming macro catalysts" },
   "news": { "intro": "1 sentence on dominant narrative theme" },
   "news_summaries": [
-    { "headline": "exact headline", "summary": "1-2 sentences: content + implication" }
+    { "headline": "topic-focused insight headline describing the market event or theme — never the source name", "summary": "1-2 sentences: content + implication" }
   ]
 }
+
+IMPORTANT: Every news_summaries headline must describe the market insight or event, not the source. Good: "Bitcoin open interest hits record as retail exits" — Bad: "CoinDesk reports on Bitcoin metrics"
 
 DATA FOR ${date}:
 TOP COINS: ${(mkt.coins||[]).map(c=>`${c.symbol} $${c.price>=1000?f(c.price,0):f(c.price,2)} (${pct(c.change24h)})`).join(" | ")}
@@ -1397,12 +1399,13 @@ export default function App() {
 
     // Step 0: all data sources in parallel
     setStep(0,"loading");
-    const [mkt, drv, polyD, news] = await Promise.all([
+    const [mkt, drv, polyD, rawNews] = await Promise.all([
       fetchMarket().catch(()=>mockMkt),
       fetchDerivatives().catch(()=>mockDrv),
       fetchPoly().catch(()=>({})),
       fetchNews().catch(()=>mockNewsFallback),
     ]);
+    const news = rawNews.slice(0, Math.max(0, 5 - customArticles.length));
     setStep(0,"done");
 
     // Step 1: Claude — .catch() guarantees we ALWAYS reach setView("report")
