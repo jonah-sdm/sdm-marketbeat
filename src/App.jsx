@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const INK        = "#000000";
@@ -190,7 +190,7 @@ const timeout = (ms) => new Promise((_,rej) => setTimeout(()=>rej(new Error("tim
 async function fetchNews() {
   const r = await Promise.race([
     fetch(`https://api.allorigins.win/get?url=${encodeURIComponent("https://www.coindesk.com/arc/outboundfeeds/rss/")}`),
-    timeout(8000),
+    timeout(5000),
   ]);
   const d = await r.json();
   const xml = new DOMParser().parseFromString(d.contents, "text/xml");
@@ -241,7 +241,7 @@ Return ONLY a valid JSON object (no code fences, no extra text) with exactly thi
     "intro": "2 sentences on the dominant narrative theme across today's headlines"
   },
   "news_summaries": [
-    { "headline": "exact article headline", "summary": "2-3 sentences summarizing the article content and its implications for institutional crypto participants" }
+    { "headline": "exact article headline", "summary": "2 sentences: content + institutional implication" }
   ]
 }
 
@@ -273,8 +273,8 @@ ${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0
       "anthropic-version":"2023-06-01",
       "anthropic-dangerous-direct-browser-access":"true",
     },
-    body:JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:4000, messages:[{role:"user",content:prompt}] }),
-  }), timeout(55000)]);
+    body:JSON.stringify({ model:"claude-3-5-haiku-20241022", max_tokens:1500, messages:[{role:"user",content:prompt}] }),
+  }), timeout(30000)]);
   const data = await resp.json();
   const text = data?.content?.[0]?.text || "";
   try { return JSON.parse(text.replace(/^```json\s*/,"").replace(/\s*```$/,"").trim()); }
@@ -666,36 +666,6 @@ function HomeScreen({ onGenerate, onSettings }) {
             )}
           </div>
 
-          {/* ETF flows toggle */}
-          <div style={{marginBottom:32}}>
-            <button onClick={()=>setShowFlows(v=>!v)}
-              style={{display:"flex",alignItems:"center",gap:8,fontFamily:BODY,fontSize:12,
-                fontWeight:600,color:INK,background:"none",border:`1px solid ${RULE}`,
-                borderRadius:2,padding:"10px 16px",cursor:"pointer",width:"100%",textAlign:"left"}}>
-              <span style={{fontFamily:MONO,fontSize:11,color:MUTED}}>{showFlows?"▼":"▶"}</span>
-              ETF Flows
-              <span style={{fontFamily:BODY,fontSize:11,fontWeight:400,marginLeft:"auto",
-                color: etfStatus==="ok" ? POS : etfStatus==="stale" ? GOLD_TEXT : etfStatus==="loading" ? MUTED : NEG
-              }}>
-                {etfStatus==="ok" && "● Auto-loaded"}
-                {etfStatus==="stale" && "● Stale data — edit manually"}
-                {etfStatus==="loading" && "● Fetching…"}
-                {etfStatus==="unavailable" && "● Enter manually · farside.co.uk"}
-              </span>
-            </button>
-            {showFlows && (
-              <div style={{border:`1px solid ${RULE}`,borderTop:"none",padding:"20px 16px"}}>
-                <div style={{fontFamily:BODY,fontSize:11,color:MUTED,marginBottom:16,lineHeight:1.5}}>
-                  Enter daily net flows in US$M. Leave blank for any ETF not reported.
-                </div>
-                <div style={{display:"flex",gap:24,flexWrap:"wrap"}}>
-                  <FlowTable tickers={ETF_BTC} flows={btcF} setFlows={setBtcF} label="BTC ETFs"/>
-                  <FlowTable tickers={ETF_ETH} flows={ethF} setFlows={setEthF} label="ETH ETFs"/>
-                  <FlowTable tickers={ETF_SOL} flows={solF} setFlows={setSolF} label="SOL ETFs"/>
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Customize accordion */}
           <div style={{marginBottom:32}}>
@@ -1380,32 +1350,12 @@ export default function App() {
 
   const handleGenerate = async ({ date, btcF, ethF, solF, customArticles=[] }) => {
     const STEPS = [
-      { label:"Fetching market prices (CoinGecko)",     status:"pending" },
-      { label:"Fetching derivatives data (Coinglass)",  status:"pending" },
-      { label:"Fetching ETF approval odds (Polymarket)",status:"pending" },
-      { label:"Fetching news headlines (CoinDesk)",     status:"pending" },
-      { label:"Generating AI analysis (Claude)",        status:"pending" },
+      { label:"Fetching live market data",       status:"pending" },
+      { label:"Generating AI analysis (Claude)", status:"pending" },
     ];
     setSteps(STEPS);
     setView("generating");
 
-    // Step 0: Market
-    setStep(0,"loading");
-    const mkt = await fetchMarket().catch(()=>mockMkt);
-    setStep(0,"done");
-
-    // Step 1: Derivatives
-    setStep(1,"loading");
-    const drv = await fetchDerivatives().catch(()=>mockDrv);
-    setStep(1,"done");
-
-    // Step 2: Polymarket
-    setStep(2,"loading");
-    const polyD = await fetchPoly().catch(()=>{});
-    setStep(2,"done");
-
-    // Step 3: News
-    setStep(3,"loading");
     const mockNewsFallback = [
       { title:"Bitcoin consolidates near key support as macro uncertainty weighs", description:"Bitcoin traded sideways near critical support levels as investors assessed Federal Reserve policy signals and broader risk-off sentiment in traditional markets.", time:"Today", src:"CoinDesk" },
       { title:"Ethereum ETF inflows pick up pace amid renewed institutional interest", description:"Spot Ethereum ETFs recorded their strongest week of inflows in over a month, suggesting a broadening of institutional crypto allocation beyond Bitcoin.", time:"Today", src:"CoinDesk" },
@@ -1413,13 +1363,21 @@ export default function App() {
       { title:"SEC review timeline for altcoin ETF applications under scrutiny", description:"Market participants are monitoring the SEC's review cadence for pending spot ETF applications covering XRP, SOL, and other digital assets after several deadline extensions.", time:"Today", src:"The Block" },
       { title:"Stablecoin supply expands as on-chain activity rebounds", description:"Total stablecoin supply across major networks expanded this week, a signal analysts associate with dry powder accumulation ahead of potential spot market deployment.", time:"Today", src:"CoinDesk" },
     ];
-    const news = await fetchNews().catch(()=>mockNewsFallback);
-    setStep(3,"done");
 
-    // Step 4: Claude
-    setStep(4,"loading");
+    // Step 0: all data sources in parallel
+    setStep(0,"loading");
+    const [mkt, drv, polyD, news] = await Promise.all([
+      fetchMarket().catch(()=>mockMkt),
+      fetchDerivatives().catch(()=>mockDrv),
+      fetchPoly().catch(()=>({})),
+      fetchNews().catch(()=>mockNewsFallback),
+    ]);
+    setStep(0,"done");
+
+    // Step 1: Claude
+    setStep(1,"loading");
     const commentary = await generateCommentary({ date, mkt, drv, btcF, ethF, solF, polyD:polyD||{}, news, customArticles });
-    setStep(4,"done");
+    setStep(1,"done");
 
     setReportData({ date, mkt, drv, btcF, ethF, solF, polyD:polyD||{}, news, commentary, customArticles });
     setView("report");
