@@ -1163,8 +1163,8 @@ function ReportScreen({ data, onBack }) {
           onDelete={()=>hideSection(1)}>
 
           {/* Table 1: Top 10 cryptos */}
-          <div style={{fontFamily:MONO,fontSize:9,fontWeight:700,color:MUTED,
-            letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>
+          <div style={{fontFamily:BODY,fontSize:11,fontWeight:600,color:MID,
+            letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>
             Top 10 by Market Cap
           </div>
           <DataTable
@@ -1182,8 +1182,8 @@ function ReportScreen({ data, onBack }) {
           <div style={{height:20}}/>
 
           {/* Table 2: Top 5 stablecoins */}
-          <div style={{fontFamily:MONO,fontSize:9,fontWeight:700,color:MUTED,
-            letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>
+          <div style={{fontFamily:BODY,fontSize:11,fontWeight:600,color:MID,
+            letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>
             Stablecoins — Top 5 by Market Cap
           </div>
           <DataTable
@@ -1230,7 +1230,7 @@ function ReportScreen({ data, onBack }) {
           onDelete={()=>hideSection(3)}>
 
           <div style={{marginBottom:20}}>
-            <div style={{fontFamily:MONO,fontSize:9,color:MUTED,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>
+            <div style={{fontFamily:BODY,fontSize:11,fontWeight:600,color:MID,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>
               Combined Net Flow Today
             </div>
             <span style={{fontFamily:HEAD,fontSize:26,fontWeight:700,color:netColor(allNet)}}>
@@ -1257,7 +1257,7 @@ function ReportScreen({ data, onBack }) {
 
           {/* Polymarket odds */}
           <div style={{marginTop:8}}>
-            <div style={{fontFamily:MONO,fontSize:9,color:MUTED,letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>
+            <div style={{fontFamily:BODY,fontSize:11,fontWeight:600,color:MID,letterSpacing:1.5,textTransform:"uppercase",marginBottom:10}}>
               Polymarket — ETF Approval Probability
             </div>
             <DataTable
