@@ -979,27 +979,28 @@ function ArticleItem({ item, index, onDelete }) {
         background:hovered?`${GOLD_BRAND}06`:"transparent",
         borderRadius:4, transition:"background 0.15s",
       }}>
-      {/* Delete button — top-right, noprint */}
-      <button className="noprint" onClick={onDelete}
-        style={{
-          position:"absolute", top:4, right:4,
-          background:"none", border:`1px solid ${NEG}44`,
-          color:NEG, fontFamily:BODY, fontSize:10, fontWeight:600,
-          padding:"2px 9px", borderRadius:3, cursor:"pointer",
-          opacity:hovered?1:0, transition:"opacity 0.12s",
-          lineHeight:1.6,
-        }}>
-        ✕ Remove
-      </button>
       <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
         <span style={{fontFamily:MONO,fontSize:10,color:MUTED,marginTop:3,flexShrink:0}}>
           {String(index+1).padStart(2,"0")}
         </span>
-        <div style={{flex:1}}>
-          <RichTextBlock style={{fontFamily:HEAD,fontSize:13,fontWeight:600,color:INK,
-            lineHeight:1.4,marginBottom:6}}>
-            {item.headline}
-          </RichTextBlock>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:6}}>
+            <RichTextBlock style={{fontFamily:HEAD,fontSize:13,fontWeight:600,color:INK,
+              lineHeight:1.4,flex:1,minWidth:0}}>
+              {item.headline}
+            </RichTextBlock>
+            <button className="noprint" onClick={onDelete}
+              style={{
+                flexShrink:0,
+                background:"none", border:`1px solid ${NEG}44`,
+                color:NEG, fontFamily:BODY, fontSize:10, fontWeight:600,
+                padding:"2px 9px", borderRadius:3, cursor:"pointer",
+                opacity:hovered?1:0, transition:"opacity 0.12s",
+                lineHeight:1.6, marginTop:1,
+              }}>
+              ✕ Remove
+            </button>
+          </div>
           <RichTextBlock style={{fontFamily:BODY,fontSize:12,color:MID,lineHeight:1.7}}>
             {item.summary}
           </RichTextBlock>
