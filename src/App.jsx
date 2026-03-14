@@ -266,15 +266,10 @@ ${news.map((n,i)=>`${i+1}. HEADLINE: ${n.title}\nDESCRIPTION: ${n.description||n
 ADDITIONAL ARTICLES PROVIDED BY USER (summarize these alongside the news above — include each as its own entry in news_summaries):
 ${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0,3000)}`).join("\n\n---\n\n")}`:""}`;
 
-  const resp = await Promise.race([fetch("https://api.anthropic.com/v1/messages", {
+  const resp = await Promise.race([fetch("/api/generate", {
     method:"POST",
-    headers:{
-      "Content-Type":"application/json",
-      "x-api-key":key,
-      "anthropic-version":"2023-06-01",
-      "anthropic-dangerous-direct-browser-access":"true",
-    },
-    body:JSON.stringify({ model:"claude-3-haiku-20240307", max_tokens:2500, messages:[{role:"user",content:prompt}] }),
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ key, prompt }),
   }), timeout(30000)]);
   const data = await resp.json();
   if (data?.error) {
