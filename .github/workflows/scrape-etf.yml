@@ -36,13 +36,16 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Switch to (or create) the data branch without losing our new file
+          # Save freshly scraped file BEFORE switching branches
+          # (branch checkout would overwrite etf-data.json in the workspace)
+          cp etf-data.json /tmp/etf-data-fresh.json
+
+          # Switch to (or create) the data branch
           git fetch origin data 2>/dev/null || true
           git checkout -B data origin/data 2>/dev/null || git checkout -B data
 
-          # Copy the freshly scraped file onto the data branch
-          git checkout ${{ github.ref_name }} -- scripts/scrape_etf.py 2>/dev/null || true
-          cp /home/runner/work/sdm-marketbeat/sdm-marketbeat/etf-data.json etf-data.json 2>/dev/null || true
+          # Restore freshly scraped file
+          cp /tmp/etf-data-fresh.json etf-data.json
 
           # If nothing changed, don't make a pointless commit
           git add etf-data.json
