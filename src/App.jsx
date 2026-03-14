@@ -609,8 +609,7 @@ function HomeScreen({ onGenerate, onSettings }) {
         <span style={{fontFamily:BODY,fontSize:11,fontWeight:600,color:INK}}>Net Total</span>
         <span style={{fontFamily:MONO,fontSize:12,fontWeight:"bold",
           color:tickers.reduce((s,k)=>s+(parseFloat(flows[k])||0),0)>=0?POS:NEG}}>
-          {(tickers.reduce((s,k)=>s+(parseFloat(flows[k])||0),0)>=0?"+":"") +
-            tickers.reduce((s,k)=>s+(parseFloat(flows[k])||0),0).toFixed(0)}M
+          {(net=>( (net>=0?"+$":"-$") + Math.abs(net).toLocaleString("en-US",{maximumFractionDigits:0}) + "M" ))(tickers.reduce((s,k)=>s+(parseFloat(flows[k])||0),0))}
         </span>
       </div>
     </div>
@@ -1045,17 +1044,18 @@ function ReportScreen({ data, onBack }) {
   };
 
   const netColor = n => n >= 0 ? POS : NEG;
-  const fFlow = n => { const v=parseFloat(n); return isNaN(v) ? "—" : (v>=0?"+":"")+v.toFixed(0); };
+  const fFlowVal = v => (v>=0?"+$":"-$") + Math.abs(v).toLocaleString("en-US",{maximumFractionDigits:0});
+  const fFlow = n => { const v=parseFloat(n); return isNaN(v) ? "—" : fFlowVal(v); };
 
   // ETF rows helper
   const etfRows = (tickers, flows) => tickers.map(k => {
     const v = parseFloat(flows[k]);
-    return [k, isNaN(v) ? "—" : { value:(v>=0?"+":"")+v.toFixed(0), style:{color:netColor(v)} }];
+    return [k, isNaN(v) ? "—" : { value:fFlowVal(v), style:{color:netColor(v)} }];
   });
 
-  const btcNetRow = ["Net Total", { value:(btcNet>=0?"+":"")+btcNet.toFixed(0)+" M", style:{color:netColor(btcNet),fontWeight:"bold"} }];
-  const ethNetRow = ["Net Total", { value:(ethNet>=0?"+":"")+ethNet.toFixed(0)+" M", style:{color:netColor(ethNet),fontWeight:"bold"} }];
-  const solNetRow = ["Net Total", { value:(solNet>=0?"+":"")+solNet.toFixed(0)+" M", style:{color:netColor(solNet),fontWeight:"bold"} }];
+  const btcNetRow = ["Net Total", { value:fFlowVal(btcNet)+"M", style:{color:netColor(btcNet),fontWeight:"bold"} }];
+  const ethNetRow = ["Net Total", { value:fFlowVal(ethNet)+"M", style:{color:netColor(ethNet),fontWeight:"bold"} }];
+  const solNetRow = ["Net Total", { value:fFlowVal(solNet)+"M", style:{color:netColor(solNet),fontWeight:"bold"} }];
 
   const W = "0 64px";
   const divider = <div style={{height:"0.5px",background:RULE,margin:"28px 64px 0"}}/>;
@@ -1234,7 +1234,7 @@ function ReportScreen({ data, onBack }) {
               Combined Net Flow Today
             </div>
             <span style={{fontFamily:HEAD,fontSize:26,fontWeight:700,color:netColor(allNet)}}>
-              {allNet>=0?"+":""}{allNet.toFixed(0)} M
+              {fFlowVal(allNet)}M
             </span>
             <span style={{fontFamily:BODY,fontSize:12,color:MUTED,marginLeft:8}}>USD · BTC + ETH + SOL</span>
           </div>
@@ -1249,7 +1249,7 @@ function ReportScreen({ data, onBack }) {
                 <DataTable
                   headers={[label, "Flow ($M)"]}
                   rows={etfRows(tickers, flows)}
-                  footer={["Net Total", { value:(net>=0?"+":"")+net.toFixed(0), style:{color:netColor(net)} }]}
+                  footer={["Net Total", { value:fFlowVal(net)+"M", style:{color:netColor(net)} }]}
                 />
               </div>
             ))}
