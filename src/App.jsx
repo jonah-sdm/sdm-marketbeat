@@ -252,28 +252,19 @@ ${news.map((n,i)=>`${i+1}. HEADLINE: ${n.title}\nDESCRIPTION: ${n.description||n
 ADDITIONAL ARTICLES PROVIDED BY USER (summarize these alongside the news above — include each as its own entry in news_summaries):
 ${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0,3000)}`).join("\n\n---\n\n")}`:""}`;
 
-  // In local dev Vite doesn't serve /api/ routes — call Anthropic directly.
-  // In production (Vercel) use the serverless proxy to avoid browser restrictions.
-  const isDev = typeof import.meta !== "undefined" && import.meta.env?.DEV;
   let resp;
   try {
     resp = await Promise.race([
-      isDev
-        ? fetch("https://api.anthropic.com/v1/messages", {
-            method:"POST",
-            headers:{
-              "Content-Type":"application/json",
-              "x-api-key":key,
-              "anthropic-version":"2023-06-01",
-              "anthropic-dangerous-direct-browser-access":"true",
-            },
-            body:JSON.stringify({ model:"claude-3-haiku-20240307", max_tokens:2000, messages:[{role:"user",content:prompt}] }),
-          })
-        : fetch("/api/generate", {
-            method:"POST",
-            headers:{ "Content-Type":"application/json" },
-            body:JSON.stringify({ key, prompt }),
-          }),
+      fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "x-api-key":key,
+          "anthropic-version":"2023-06-01",
+          "anthropic-dangerous-direct-browser-access":"true",
+        },
+        body:JSON.stringify({ model:"claude-sonnet-4-5", max_tokens:2000, messages:[{role:"user",content:prompt}] }),
+      }),
       timeout(28000),
     ]);
   } catch(e) {
@@ -364,7 +355,7 @@ function SDMLogo({ width = 170 }) {
 function SettingsModal({ onClose, onSave }) {
   const [ak, setAk] = useState(()=>localStorage.getItem(LS_ANTHROPIC)||"");
   const [gh, setGh] = useState(()=>localStorage.getItem(LS_GH_TOKEN)||"");
-  const [showAk, setShowAk] = useState(false);
+  const [showAk, setShowAk] = useState(true);
   const [showGh, setShowGh] = useState(false);
   const [saved, setSaved]   = useState(false);
 
