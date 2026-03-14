@@ -1164,7 +1164,7 @@ function ReportScreen({ data, onBack, onSettings }) {
                 );
               })()}
               {(Array.isArray(commentary?.executive_summary) ? commentary.executive_summary : []).map((bullet, i) => {
-                const icons = ["◆","▲","◉","▸","◈"];
+                const icons = ["◆","◆","◆","◆","◆"];
                 return (
                   <div key={i} style={{
                     display:"flex",alignItems:"flex-start",gap:12,
