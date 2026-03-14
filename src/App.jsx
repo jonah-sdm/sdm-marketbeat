@@ -286,7 +286,9 @@ ${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0
 
   if (data?.error) {
     console.error("Claude API error:", data.error);
-    return { _err:"api_error", msg: data.error?.message || JSON.stringify(data.error) };
+    const errType = data.error?.type || "";
+    const errMsg  = data.error?.message || JSON.stringify(data.error);
+    return { _err:"api_error", msg: `${errType}: ${errMsg}` };
   }
   const text = data?.content?.[0]?.text || "";
   try { return JSON.parse(text.replace(/^```json\s*/,"").replace(/\s*```$/,"").trim()); }
