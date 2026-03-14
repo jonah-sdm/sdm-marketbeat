@@ -273,12 +273,13 @@ ${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0
       "anthropic-version":"2023-06-01",
       "anthropic-dangerous-direct-browser-access":"true",
     },
-    body:JSON.stringify({ model:"claude-3-5-haiku-20241022", max_tokens:1500, messages:[{role:"user",content:prompt}] }),
+    body:JSON.stringify({ model:"claude-3-5-haiku-20241022", max_tokens:2500, messages:[{role:"user",content:prompt}] }),
   }), timeout(30000)]);
   const data = await resp.json();
+  if (data?.error) { console.error("Claude API error:", data.error); return null; }
   const text = data?.content?.[0]?.text || "";
   try { return JSON.parse(text.replace(/^```json\s*/,"").replace(/\s*```$/,"").trim()); }
-  catch { return null; }
+  catch(e) { console.error("Claude JSON parse failed. stop_reason:", data?.stop_reason, "tokens used:", data?.usage, "\nText:", text.slice(0,500)); return null; }
 }
 
 // ── Export: HTML download ─────────────────────────────────────────────────────
@@ -1129,7 +1130,7 @@ function ReportScreen({ data, onBack }) {
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {(Array.isArray(commentary?.executive_summary)
                 ? commentary.executive_summary
-                : ["Generating executive summary…"]
+                : ["AI commentary unavailable — check API key or regenerate."]
               ).map((bullet, i) => {
                 const icons = ["◆","▲","◉","▸","◈"];
                 return (
