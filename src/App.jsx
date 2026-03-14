@@ -274,7 +274,7 @@ ${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0
       "anthropic-version":"2023-06-01",
       "anthropic-dangerous-direct-browser-access":"true",
     },
-    body:JSON.stringify({ model:"claude-3-5-haiku-20241022", max_tokens:2500, messages:[{role:"user",content:prompt}] }),
+    body:JSON.stringify({ model:"claude-3-haiku-20240307", max_tokens:2500, messages:[{role:"user",content:prompt}] }),
   }), timeout(30000)]);
   const data = await resp.json();
   if (data?.error) {
