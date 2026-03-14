@@ -1,10 +1,10 @@
-// Vercel serverless function — proxies Anthropic API calls server-side
-// Avoids all browser CORS / dangerous-header restrictions
+// Vercel serverless function — proxies Anthropic API server-to-server
+// Avoids browser CORS / tier restrictions on direct browser calls
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { key, prompt } = req.body;
+  const { key, prompt } = req.body || {};
   if (!key) return res.status(400).json({ error: { type: "no_key", message: "No API key provided" } });
 
   try {
@@ -16,8 +16,8 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-3-5-haiku-20241022",
-        max_tokens: 2500,
+        model: "claude-3-haiku-20240307",
+        max_tokens: 2000,
         messages: [{ role: "user", content: prompt }],
       }),
     });

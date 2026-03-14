@@ -221,28 +221,14 @@ async function generateCommentary({ date, mkt, drv, btcF, ethF, solF, polyD, new
 
 Return ONLY a valid JSON object (no code fences, no extra text) with exactly this structure:
 {
-  "executive_summary": ["headline bullet 1 — tight, declarative, one key insight (15-25 words)", "headline bullet 2", "headline bullet 3", "headline bullet 4", "headline bullet 5"],
-  "market": {
-    "intro": "2-3 sentences contextualizing today's price action and market structure",
-    "outro": "1-2 sentences on near-term market structure outlook"
-  },
-  "derivatives": {
-    "intro": "2-3 sentences on the funding regime and CME basis dynamics and what they signal",
-    "outro": "1-2 sentences on what the derivatives positioning implies for spot markets"
-  },
-  "etf": {
-    "intro": "2-3 sentences contextualizing ETF flow data and the institutional demand signal",
-    "outro": "1-2 sentences on what today's flows imply for market structure"
-  },
-  "calendar": {
-    "intro": "2 sentences on upcoming macro catalysts and relevance to crypto",
-    "outro": "1 sentence positioning note ahead of upcoming events"
-  },
-  "news": {
-    "intro": "2 sentences on the dominant narrative theme across today's headlines"
-  },
+  "executive_summary": ["bullet 1 — tight, declarative, 15-20 words", "bullet 2", "bullet 3", "bullet 4", "bullet 5"],
+  "market": { "intro": "2 sentences on price action and market structure" },
+  "derivatives": { "intro": "2 sentences on funding regime and CME basis" },
+  "etf": { "intro": "2 sentences on ETF flows and institutional demand signal" },
+  "calendar": { "intro": "1 sentence on upcoming macro catalysts" },
+  "news": { "intro": "1 sentence on dominant narrative theme" },
   "news_summaries": [
-    { "headline": "exact article headline", "summary": "2 sentences: content + institutional implication" }
+    { "headline": "exact headline", "summary": "1-2 sentences: content + implication" }
   ]
 }
 
@@ -266,22 +252,47 @@ ${news.map((n,i)=>`${i+1}. HEADLINE: ${n.title}\nDESCRIPTION: ${n.description||n
 ADDITIONAL ARTICLES PROVIDED BY USER (summarize these alongside the news above — include each as its own entry in news_summaries):
 ${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0,3000)}`).join("\n\n---\n\n")}`:""}`;
 
-  const resp = await Promise.race([fetch("/api/generate", {
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({ key, prompt }),
-  }), timeout(30000)]);
-  const data = await resp.json();
+  // In local dev Vite doesn't serve /api/ routes — call Anthropic directly.
+  // In production (Vercel) use the serverless proxy to avoid browser restrictions.
+  const isDev = typeof import.meta !== "undefined" && import.meta.env?.DEV;
+  let resp;
+  try {
+    resp = await Promise.race([
+      isDev
+        ? fetch("https://api.anthropic.com/v1/messages", {
+            method:"POST",
+            headers:{
+              "Content-Type":"application/json",
+              "x-api-key":key,
+              "anthropic-version":"2023-06-01",
+              "anthropic-dangerous-direct-browser-access":"true",
+            },
+            body:JSON.stringify({ model:"claude-3-haiku-20240307", max_tokens:2000, messages:[{role:"user",content:prompt}] }),
+          })
+        : fetch("/api/generate", {
+            method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body:JSON.stringify({ key, prompt }),
+          }),
+      timeout(28000),
+    ]);
+  } catch(e) {
+    return { _err:"api_error", msg:`Request failed: ${e.message}` };
+  }
+
+  let data;
+  try { data = await resp.json(); }
+  catch(e) { return { _err:"api_error", msg:`HTTP ${resp.status} — server returned non-JSON response` }; }
+
   if (data?.error) {
-    const msg = data.error?.message || JSON.stringify(data.error);
     console.error("Claude API error:", data.error);
-    return { _err:"api_error", msg };
+    return { _err:"api_error", msg: data.error?.message || JSON.stringify(data.error) };
   }
   const text = data?.content?.[0]?.text || "";
   try { return JSON.parse(text.replace(/^```json\s*/,"").replace(/\s*```$/,"").trim()); }
   catch(e) {
-    console.error("Claude JSON parse failed. stop_reason:", data?.stop_reason, "tokens used:", data?.usage, "\nText:", text.slice(0,500));
-    return { _err:"parse_failed", msg:`stop_reason=${data?.stop_reason} tokens=${JSON.stringify(data?.usage)}` };
+    console.error("Claude JSON parse failed:", data?.stop_reason, data?.usage, text.slice(0,300));
+    return { _err:"parse_failed", msg:`stop=${data?.stop_reason}` };
   }
 }
 
@@ -1401,9 +1412,10 @@ export default function App() {
     ]);
     setStep(0,"done");
 
-    // Step 1: Claude
+    // Step 1: Claude — .catch() guarantees we ALWAYS reach setView("report")
     setStep(1,"loading");
-    const commentary = await generateCommentary({ date, mkt, drv, btcF, ethF, solF, polyD:polyD||{}, news, customArticles });
+    const commentary = await generateCommentary({ date, mkt, drv, btcF, ethF, solF, polyD:polyD||{}, news, customArticles })
+      .catch(err => ({ _err:"exception", msg:err.message }));
     setStep(1,"done");
 
     setReportData({ date, mkt, drv, btcF, ethF, solF, polyD:polyD||{}, news, commentary, customArticles });
