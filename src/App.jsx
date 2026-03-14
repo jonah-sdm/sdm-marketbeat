@@ -505,7 +505,7 @@ async function fetchTweet(rawUrl) {
 
 // ── ETF auto-fetch from GitHub data branch ────────────────────────────────────
 const ETF_DATA_URL =
-  "https://raw.githubusercontent.com/JonahMirsky/sdm-marketbeat/data/etf-data.json";
+  "https://raw.githubusercontent.com/jonah-sdm/sdm-marketbeat/data/etf-data.json";
 
 async function fetchCachedETF() {
   try {
