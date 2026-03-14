@@ -1,0 +1,54 @@
+name: Scrape ETF Flows
+
+on:
+  # Every weeknight at 01:30 UTC = 9:30 PM ET (after market close + settlement lag)
+  schedule:
+    - cron: "30 1 * * 2-6"   # Tue–Sat UTC = Mon–Fri ET
+
+  # Run on-demand from GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed to push the data branch
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # need full history to push data branch
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Run scraper
+        run: python scripts/scrape_etf.py
+
+      - name: Commit & push to data branch
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Switch to (or create) the data branch without losing our new file
+          git fetch origin data 2>/dev/null || true
+          git checkout -B data origin/data 2>/dev/null || git checkout -B data
+
+          # Copy the freshly scraped file onto the data branch
+          git checkout ${{ github.ref_name }} -- scripts/scrape_etf.py 2>/dev/null || true
+          cp /home/runner/work/sdm-marketbeat/sdm-marketbeat/etf-data.json etf-data.json 2>/dev/null || true
+
+          # If nothing changed, don't make a pointless commit
+          git add etf-data.json
+          if git diff --staged --quiet; then
+            echo "No changes to ETF data — skipping commit."
+          else
+            git commit -m "chore: update ETF flow data $(date -u +%Y-%m-%d)"
+            git push origin data
+          fi
