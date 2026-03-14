@@ -1001,7 +1001,7 @@ function ArticleItem({ item, index, onDelete }) {
 }
 
 // ── Report Screen ─────────────────────────────────────────────────────────────
-function ReportScreen({ data, onBack }) {
+function ReportScreen({ data, onBack, onSettings }) {
   const { date, mkt, drv, btcF, ethF, solF, polyD, news, commentary } = data;
   const rootRef = useRef(null);
   const [shareMsg, setShareMsg] = useState("");
@@ -1128,9 +1128,27 @@ function ReportScreen({ data, onBack }) {
               </span>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {!commentary && (
+                <div style={{background:"#fffbeb",border:`1px solid ${GOLD_BRAND}`,borderRadius:4,
+                  padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+                  <div>
+                    <div style={{fontFamily:BODY,fontSize:13,fontWeight:600,color:INK,marginBottom:4}}>
+                      No Anthropic API key configured
+                    </div>
+                    <div style={{fontFamily:BODY,fontSize:12,color:MID,lineHeight:1.5}}>
+                      AI commentary requires an API key. Market data and tables above are live.
+                    </div>
+                  </div>
+                  <button onClick={onSettings}
+                    style={{fontFamily:BODY,fontSize:11,fontWeight:700,background:INK,color:BG,
+                      border:"none",borderRadius:2,padding:"8px 16px",cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
+                    Add API Key →
+                  </button>
+                </div>
+              )}
               {(Array.isArray(commentary?.executive_summary)
                 ? commentary.executive_summary
-                : ["AI commentary unavailable — check API key or regenerate."]
+                : []
               ).map((bullet, i) => {
                 const icons = ["◆","▲","◉","▸","◈"];
                 return (
@@ -1394,7 +1412,7 @@ export default function App() {
       )}
       {view === "generating" && <GeneratingScreen steps={steps}/>}
       {view === "report" && (
-        <ReportScreen data={reportData} onBack={()=>setView("home")}/>
+        <ReportScreen data={reportData} onBack={()=>setView("home")} onSettings={()=>setShowSettings(true)}/>
       )}
       {showSettings && (
         <SettingsModal
