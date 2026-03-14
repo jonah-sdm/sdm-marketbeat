@@ -187,21 +187,98 @@ async function fetchPoly() {
 
 const timeout = (ms) => new Promise((_,rej) => setTimeout(()=>rej(new Error("timeout")), ms));
 
+// ── Multi-source news ranking ─────────────────────────────────────────────────
+const NEWS_FEEDS = [
+  { url:"https://www.theblock.co/rss.xml",                           src:"The Block" },
+  { url:"https://www.coindesk.com/arc/outboundfeeds/rss/",           src:"CoinDesk" },
+  { url:"https://cointelegraph.com/rss",                             src:"Cointelegraph" },
+  { url:"https://blockworks.co/feed",                                src:"Blockworks" },
+  { url:"https://decrypt.co/feed",                                   src:"Decrypt" },
+  { url:"https://cryptoslate.com/feed/",                             src:"CryptoSlate" },
+];
+
+function parseRSS(xmlStr, srcName) {
+  try {
+    const xml = new DOMParser().parseFromString(xmlStr || "", "text/xml");
+    return [...xml.querySelectorAll("item")].slice(0, 12).map(el => ({
+      title:       el.querySelector("title")?.textContent?.trim() || "",
+      description: (el.querySelector("description")?.textContent || "").replace(/<[^>]*>/g,"").trim().slice(0,600),
+      pubDate:     el.querySelector("pubDate")?.textContent || "",
+      time: el.querySelector("pubDate")?.textContent
+        ? new Date(el.querySelector("pubDate").textContent).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})+" ET"
+        : "Today",
+      src: srcName,
+    })).filter(a => a.title.length > 10);
+  } catch { return []; }
+}
+
+const NEWS_STOPWORDS = new Set([
+  "the","a","an","is","are","of","in","on","at","to","for","and","or","as","by",
+  "with","from","that","this","it","its","be","was","were","has","have","will",
+  "says","said","report","reports","new","after","amid","over","under","back",
+  "more","just","also","gets","what","when","how","why","who","their","they",
+  "about","into","than","then","been","being","would","could","should","while",
+]);
+
+function extractKeywords(title) {
+  return title.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !NEWS_STOPWORDS.has(w));
+}
+
+function clusterAndRank(articles, n) {
+  // Build clusters: articles sharing ≥2 keywords belong to same story
+  const clusters = [];
+  for (const article of articles) {
+    const kw = new Set(extractKeywords(article.title));
+    const match = clusters.find(c => {
+      const repKw = extractKeywords(c[0].title);
+      return repKw.filter(k => kw.has(k)).length >= 2;
+    });
+    if (match) match.push(article);
+    else clusters.push([article]);
+  }
+
+  // Score each cluster
+  const scored = clusters.map(cluster => {
+    const uniqueSources = new Set(cluster.map(a => a.src)).size;
+    const now = Date.now();
+    const recencyBonus = cluster.filter(a => {
+      const pd = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+      return pd && (now - pd) < 2 * 60 * 60 * 1000;
+    }).length * 3;
+    const score = (uniqueSources * 10) + (cluster.length * 2) + recencyBonus;
+
+    // Pick representative from highest-authority source
+    const PRIORITY = ["The Block","CoinDesk","Cointelegraph","Blockworks","Decrypt","CryptoSlate"];
+    const rep = cluster.slice().sort((a,b) => {
+      const ai = PRIORITY.indexOf(a.src), bi = PRIORITY.indexOf(b.src);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    })[0];
+
+    return {
+      ...rep,
+      sources: [...new Set(cluster.map(a => a.src))],
+      coverageCount: uniqueSources,
+      score,
+    };
+  });
+
+  return scored.sort((a,b) => b.score - a.score).slice(0, n);
+}
+
 async function fetchNews() {
-  const r = await Promise.race([
-    fetch(`https://api.allorigins.win/get?url=${encodeURIComponent("https://www.coindesk.com/arc/outboundfeeds/rss/")}`),
-    timeout(5000),
-  ]);
-  const d = await r.json();
-  const xml = new DOMParser().parseFromString(d.contents, "text/xml");
-  return [...xml.querySelectorAll("item")].slice(0, 7).map(el => ({
-    title: el.querySelector("title")?.textContent || "",
-    description: el.querySelector("description")?.textContent?.replace(/<[^>]*>/g,"").trim().slice(0,600) || "",
-    time: el.querySelector("pubDate")?.textContent
-      ? new Date(el.querySelector("pubDate").textContent).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})+" ET"
-      : "Today",
-    src: "CoinDesk",
-  }));
+  const results = await Promise.allSettled(
+    NEWS_FEEDS.map(f =>
+      Promise.race([
+        fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(f.url)}`),
+        timeout(5000),
+      ]).then(r => r.json()).then(d => parseRSS(d.contents, f.src))
+    )
+  );
+  const all = results.flatMap(r => r.status === "fulfilled" ? r.value : []);
+  return clusterAndRank(all, 7);
 }
 
 // ── Claude commentary generator ───────────────────────────────────────────────
@@ -248,8 +325,8 @@ ETF APPROVAL ODDS: ${POLY.map(p=>`${p.label}: ${polyD[p.id]||p.fb}%`).join(" | "
 
 UPCOMING MACRO (14d): ${upcoming.length ? upcoming.map(e=>`${e.date} ${e.ev}`).join(" | ") : "None in window"}
 
-NEWS TO SUMMARIZE:
-${news.map((n,i)=>`${i+1}. HEADLINE: ${n.title}\nDESCRIPTION: ${n.description||n.title}`).join("\n\n")}${customArticles.length?`
+NEWS TO SUMMARIZE (ranked by cross-source coverage — higher coverage = more breaking):
+${news.map((n,i)=>`${i+1}. HEADLINE: ${n.title}\nCOVERAGE: ${(n.sources||[n.src]).join(", ")} (${(n.sources||[n.src]).length}/6 sources)\nDESCRIPTION: ${n.description||n.title}`).join("\n\n")}${customArticles.length?`
 
 ADDITIONAL ARTICLES PROVIDED BY USER (summarize these alongside the news above — include each as its own entry in news_summaries):
 ${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0,3000)}`).join("\n\n---\n\n")}`:""}`;
