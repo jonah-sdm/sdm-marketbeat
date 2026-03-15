@@ -1,13 +1,16 @@
-// Vercel serverless function — proxies Anthropic API server-to-server
+// Vercel serverless function — proxies Anthropic API using server-side key
+// Client sends only the prompt; key never touches the browser.
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { key, prompt } = req.body || {};
-  if (!key) return res.status(400).json({ error: { type: "no_key", message: "No API key provided" } });
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    return res.status(500).json({ error: { type: "no_key", message: "ANTHROPIC_API_KEY not set in Vercel environment variables" } });
+  }
 
-  // Log first 12 chars of key so we can verify it's arriving correctly
-  console.log("key prefix:", key.slice(0, 12), "prompt length:", prompt?.length);
+  const { prompt } = req.body || {};
+  if (!prompt) return res.status(400).json({ error: { type: "no_prompt", message: "No prompt provided" } });
 
   try {
     const upstream = await fetch("https://api.anthropic.com/v1/messages", {
@@ -18,14 +21,13 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022",
+        model: "claude-sonnet-4-5",
         max_tokens: 2000,
         messages: [{ role: "user", content: prompt }],
       }),
     });
 
     const data = await upstream.json();
-    console.log("Anthropic status:", upstream.status, "error:", data?.error?.type);
     return res.status(upstream.status).json(data);
   } catch (err) {
     return res.status(500).json({ error: { type: "proxy_error", message: err.message } });

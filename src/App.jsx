@@ -284,8 +284,6 @@ async function fetchNews() {
 // ── Claude commentary generator ───────────────────────────────────────────────
 // Returns: parsed JSON object on success, { _err: "no_key" | "api_error" | "parse_failed", msg? } on failure
 async function generateCommentary({ date, mkt, drv, btcF, ethF, solF, polyD, news, customArticles=[] }) {
-  const key = getAnthropicKey();
-  if (!key) return { _err:"no_key" };
 
   const btcNet = ETF_BTC.reduce((s,k) => s+(parseFloat(btcF[k])||0), 0);
   const ethNet = ETF_ETH.reduce((s,k) => s+(parseFloat(ethF[k])||0), 0);
@@ -334,15 +332,10 @@ ${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0
   let resp;
   try {
     resp = await Promise.race([
-      fetch("https://api.anthropic.com/v1/messages", {
+      fetch("/api/generate", {
         method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "x-api-key":key,
-          "anthropic-version":"2023-06-01",
-          "anthropic-dangerous-direct-browser-access":"true",
-        },
-        body:JSON.stringify({ model:"claude-sonnet-4-5", max_tokens:2000, messages:[{role:"user",content:prompt}] }),
+        headers:{ "Content-Type":"application/json" },
+        body:JSON.stringify({ prompt }),
       }),
       timeout(28000),
     ]);
