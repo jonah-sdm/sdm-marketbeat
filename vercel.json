@@ -3,5 +3,9 @@
     "api/generate.js": {
       "maxDuration": 30
     }
-  }
+  },
+  "routes": [
+    { "src": "/api/generate", "dest": "/api/generate.js" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }
