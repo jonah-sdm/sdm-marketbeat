@@ -712,7 +712,7 @@ function HomeScreen({ onGenerate, onSettings }) {
             <button onClick={onSettings}
               style={{fontFamily:BODY,fontSize:11,fontWeight:600,color:MUTED,background:"none",
                 border:`1px solid ${RULE}`,borderRadius:2,padding:"6px 14px",cursor:"pointer"}}>
-              {hasKey ? "⚙ Settings" : "⚙ Add API Key"}
+              ⚙ Settings
             </button>
           </div>
 
@@ -1208,32 +1208,21 @@ function ReportScreen({ data, onBack, onSettings }) {
               </span>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              {commentary?._err && (() => {
-                const isNoKey = commentary._err === "no_key";
-                const title   = isNoKey ? "No Anthropic API key configured" : "AI commentary failed";
-                const detail  = isNoKey
-                  ? "Enter your API key in Settings — market data and tables are live."
-                  : (commentary._err === "api_error"
-                      ? `API error: ${commentary.msg}`
-                      : `Response parse error — ${commentary.msg}`);
-                return (
-                  <div style={{background: isNoKey?"#fffbeb":NEGL,
-                    border:`1px solid ${isNoKey?GOLD_BRAND:NEG}`,borderRadius:4,
-                    padding:"14px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
-                    <div>
-                      <div style={{fontFamily:BODY,fontSize:13,fontWeight:600,color:INK,marginBottom:4}}>{title}</div>
-                      <div style={{fontFamily:BODY,fontSize:12,color:MID,lineHeight:1.5}}>{detail}</div>
-                    </div>
-                    {isNoKey && (
-                      <button onClick={onSettings}
-                        style={{fontFamily:BODY,fontSize:11,fontWeight:700,background:INK,color:BG,
-                          border:"none",borderRadius:2,padding:"8px 16px",cursor:"pointer",flexShrink:0,whiteSpace:"nowrap"}}>
-                        Open Settings →
-                      </button>
-                    )}
+              {commentary?._err && (
+                <div style={{background:NEGL, border:`1px solid ${NEG}`, borderRadius:4,
+                  padding:"14px 18px"}}>
+                  <div style={{fontFamily:BODY,fontSize:13,fontWeight:600,color:INK,marginBottom:4}}>
+                    AI commentary failed
                   </div>
-                );
-              })()}
+                  <div style={{fontFamily:BODY,fontSize:12,color:MID,lineHeight:1.5}}>
+                    {commentary._err === "api_error"
+                      ? `API error: ${commentary.msg}`
+                      : commentary._err === "parse_failed"
+                        ? `Response parse error — ${commentary.msg}`
+                        : `Error: ${commentary.msg || commentary._err}`}
+                  </div>
+                </div>
+              )}
               {(Array.isArray(commentary?.executive_summary) ? commentary.executive_summary : []).map((bullet, i) => {
                 const icons = ["◆","◆","◆","◆","◆"];
                 return (
