@@ -21,10 +21,8 @@ const MONO       = "'Courier New','Lucida Console',monospace";
 const CAT_BG     = { FED:"#1851EB", CPI:"#6b2d1f", NFP:"#1a3528", GDP:"#1c1f38", SEC:"#38182c" };
 
 // ── localStorage ──────────────────────────────────────────────────────────────
-const LS_ANTHROPIC = "sdm_mb_anthropic_key";
 const LS_GH_TOKEN  = "sdm_mb_gh_token";
-const getAnthropicKey = () => localStorage.getItem(LS_ANTHROPIC) || import.meta.env.VITE_ANTHROPIC_API_KEY || "";
-const getGhToken      = () => localStorage.getItem(LS_GH_TOKEN)  || import.meta.env.VITE_GH_TOKEN || "";
+const getGhToken   = () => localStorage.getItem(LS_GH_TOKEN) || import.meta.env.VITE_GH_TOKEN || "";
 
 // ── ETF tickers ───────────────────────────────────────────────────────────────
 const ETF_BTC = ["IBIT","FBTC","BITB","ARKB","BTCO","EZBC","BRRR","HODL","BTCW","GBTC","BTC"];
@@ -265,7 +263,22 @@ function clusterAndRank(articles, n) {
     };
   });
 
-  return scored.sort((a,b) => b.score - a.score).slice(0, n);
+  // Shuffle within equal-score tiers for variety, then apply per-source cap
+  const shuffled = scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return Math.random() - 0.5;
+  });
+  const selected = [];
+  const srcCounts = {};
+  for (const article of shuffled) {
+    if (selected.length >= n) break;
+    const s = article.src;
+    if ((srcCounts[s] || 0) < 2) {
+      selected.push(article);
+      srcCounts[s] = (srcCounts[s] || 0) + 1;
+    }
+  }
+  return selected;
 }
 
 async function fetchNews() {
@@ -303,7 +316,7 @@ Return ONLY a valid JSON object (no code fences, no extra text) with exactly thi
   "calendar": { "intro": "1 sentence on upcoming macro catalysts" },
   "news": { "intro": "1 sentence on dominant narrative theme" },
   "news_summaries": [
-    { "headline": "topic-focused insight headline describing the market event or theme — never the source name", "summary": "1-2 sentences: content + implication" }
+    { "headline": "topic-focused insight headline describing the market event or theme — never the source name", "summary": "1-2 sentences: content + implication", "source": "Primary source name (e.g. CoinDesk)" }
   ]
 }
 
@@ -425,21 +438,17 @@ function SDMLogo({ width = 170 }) {
 
 // ── Settings modal ────────────────────────────────────────────────────────────
 function SettingsModal({ onClose, onSave }) {
-  const [ak, setAk] = useState(()=>localStorage.getItem(LS_ANTHROPIC)||"");
   const [gh, setGh] = useState(()=>localStorage.getItem(LS_GH_TOKEN)||"");
-  const [showAk, setShowAk] = useState(true);
   const [showGh, setShowGh] = useState(false);
   const [saved, setSaved]   = useState(false);
 
   const handleSave = () => {
-    ak.trim() ? localStorage.setItem(LS_ANTHROPIC, ak.trim()) : localStorage.removeItem(LS_ANTHROPIC);
-    gh.trim() ? localStorage.setItem(LS_GH_TOKEN,  gh.trim()) : localStorage.removeItem(LS_GH_TOKEN);
+    gh.trim() ? localStorage.setItem(LS_GH_TOKEN, gh.trim()) : localStorage.removeItem(LS_GH_TOKEN);
     setSaved(true);
     setTimeout(()=>{ onSave(); onClose(); }, 600);
   };
 
   const mask = k => !k || k.length < 8 ? k : k.slice(0,8)+"•".repeat(Math.max(0,k.length-12))+k.slice(-4);
-  const rowStyle = { padding:"18px 0", borderBottom:`0.5px solid ${RULE}` };
   const labelStyle = { fontFamily:BODY, fontSize:10, fontWeight:600, color:MUTED, letterSpacing:2, textTransform:"uppercase", marginBottom:4 };
   const descStyle  = { fontFamily:BODY, fontSize:11, color:MID, marginBottom:10 };
   const inputStyle = { flex:1, fontFamily:MONO, fontSize:12, color:INK, background:BGOFF,
@@ -458,32 +467,15 @@ function SettingsModal({ onClose, onSave }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
             <div>
               <div style={{fontFamily:MONO,fontSize:10,color:MUTED,letterSpacing:3,textTransform:"uppercase",marginBottom:4}}>Configuration</div>
-              <h2 style={{fontFamily:HEAD,fontSize:20,fontWeight:700,color:INK}}>API Keys</h2>
+              <h2 style={{fontFamily:HEAD,fontSize:20,fontWeight:700,color:INK}}>Settings</h2>
             </div>
             <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontFamily:MONO,fontSize:18,color:MUTED}}>✕</button>
           </div>
 
-          {/* Anthropic key */}
-          <div style={rowStyle}>
-            <div style={labelStyle}>Anthropic API Key</div>
-            <div style={descStyle}>Required · Powers all AI-generated commentary and news summaries</div>
-            <div style={{display:"flex",gap:8}}>
-              <input type={showAk?"text":"password"} value={ak} onChange={e=>setAk(e.target.value)}
-                placeholder="sk-ant-api03-..." autoComplete="off" style={inputStyle}/>
-              <button onClick={()=>setShowAk(v=>!v)} style={btnSm}>{showAk?"Hide":"Show"}</button>
-            </div>
-            {!showAk&&ak.trim().length>10&&<div style={{fontFamily:MONO,fontSize:10,color:MUTED,marginTop:6}}>Saved: {mask(ak)}</div>}
-            <a href="https://console.anthropic.com/" target="_blank" rel="noreferrer"
-              style={{fontFamily:BODY,fontSize:11,color:BLUE,display:"inline-block",marginTop:8}}>
-              Get a key at console.anthropic.com ↗
-            </a>
-          </div>
-
           {/* GitHub token */}
-          <div style={{...rowStyle, borderBottom:"none"}}>
+          <div style={{padding:"18px 0", borderBottom:"none"}}>
             <div style={labelStyle}>GitHub Token <span style={{color:MUTED,fontWeight:400,letterSpacing:0}}>(optional)</span></div>
             <div style={descStyle}>For shareable links — saves reports to jonah-sdm/sdm-reports</div>
-            {/* Step-by-step instructions */}
             <div style={{background:BGOFF,border:`1px solid ${RULE}`,borderRadius:2,padding:"12px 14px",marginBottom:12}}>
               <div style={{fontFamily:BODY,fontSize:11,fontWeight:600,color:INK,marginBottom:8}}>
                 Must be created from the <span style={{fontFamily:MONO,color:BLUE}}>jonah-sdm</span> GitHub account:
@@ -509,12 +501,6 @@ function SettingsModal({ onClose, onSave }) {
               <button onClick={()=>setShowGh(v=>!v)} style={btnSm}>{showGh?"Hide":"Show"}</button>
             </div>
             {!showGh&&gh.trim().length>10&&<div style={{fontFamily:MONO,fontSize:10,color:MUTED,marginTop:6}}>Saved: {mask(gh)}</div>}
-          </div>
-
-          <div style={{padding:"12px 0",borderTop:`0.5px solid ${RULE}`}}>
-            <div style={{fontFamily:MONO,fontSize:10,color:MUTED,lineHeight:1.7}}>
-              Keys stored in your browser only (localStorage). Never sent to any SDM server.
-            </div>
           </div>
         </div>
         <div style={{padding:"14px 32px 20px",display:"flex",justifyContent:"flex-end",gap:10,borderTop:`0.5px solid ${RULE}`}}>
@@ -599,7 +585,7 @@ async function fetchCachedETF() {
 }
 
 // ── Home Screen ───────────────────────────────────────────────────────────────
-function HomeScreen({ onGenerate, onSettings }) {
+function HomeScreen({ onGenerate }) {
   const [date, setDate]         = useState(todayISO());
   const [showFlows, setShowFlows]         = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
@@ -663,8 +649,6 @@ function HomeScreen({ onGenerate, onSettings }) {
     setPasteText("");
   };
 
-  const hasKey = !!getAnthropicKey();
-
   const inputStyle = { fontFamily:MONO, fontSize:12, color:INK, background:BG,
     border:`1px solid ${RULE}`, borderRadius:2, padding:"6px 10px", outline:"none",
     width:90, textAlign:"right" };
@@ -706,14 +690,9 @@ function HomeScreen({ onGenerate, onSettings }) {
         <div style={{borderTop:`2px solid ${GOLD_BRAND}`,marginTop:3}}/>
 
         <div style={{padding:"40px 48px"}}>
-          {/* Logo + settings */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:36}}>
+          {/* Logo */}
+          <div style={{marginBottom:36}}>
             <SDMLogo width={140}/>
-            <button onClick={onSettings}
-              style={{fontFamily:BODY,fontSize:11,fontWeight:600,color:MUTED,background:"none",
-                border:`1px solid ${RULE}`,borderRadius:2,padding:"6px 14px",cursor:"pointer"}}>
-              ⚙ Settings
-            </button>
           </div>
 
           {/* Headline */}
@@ -850,13 +829,6 @@ function HomeScreen({ onGenerate, onSettings }) {
           </div>
 
           {/* Generate button */}
-          {!hasKey && (
-            <div style={{fontFamily:BODY,fontSize:12,color:NEG,background:NEGL,
-              padding:"10px 14px",borderRadius:2,marginBottom:16}}>
-              Add your Anthropic API key in Settings to enable AI-generated commentary.
-              The report will still generate with market data only.
-            </div>
-          )}
           <button onClick={()=>onGenerate({date,btcF,ethF,solF,customArticles})}
             style={{width:"100%",fontFamily:HEAD,fontSize:15,fontWeight:700,color:BG,
               background:INK,border:"none",borderRadius:2,padding:"16px 24px",
@@ -1071,6 +1043,11 @@ function ArticleItem({ item, index, onDelete }) {
               ✕ Remove
             </button>
           </div>
+          {item.source && (
+            <div style={{fontFamily:MONO,fontSize:10,color:MUTED,marginBottom:5,letterSpacing:"0.03em"}}>
+              {item.source}
+            </div>
+          )}
           <RichTextBlock style={{fontFamily:BODY,fontSize:12,color:MID,lineHeight:1.7}}>
             {item.summary}
           </RichTextBlock>
@@ -1081,7 +1058,7 @@ function ArticleItem({ item, index, onDelete }) {
 }
 
 // ── Report Screen ─────────────────────────────────────────────────────────────
-function ReportScreen({ data, onBack, onSettings }) {
+function ReportScreen({ data, onBack }) {
   const { date, mkt, drv, btcF, ethF, solF, polyD, news, commentary } = data;
   const rootRef = useRef(null);
   const [shareMsg, setShareMsg] = useState("");
@@ -1401,7 +1378,7 @@ function ReportScreen({ data, onBack, onSettings }) {
         {/* 05 — Market News */}
         {!hiddenSections.has(5) && <ReportSection number={5} title="Market News — Key Takeaways"
           intro={commentary?.news?.intro}>
-          {(commentary?.news_summaries?.length ? commentary.news_summaries : news.map(n=>({headline:n.title,summary:n.description})))
+          {(commentary?.news_summaries?.length ? commentary.news_summaries : news.map(n=>({headline:n.title,summary:n.description,source:n.src})))
             .map((item, i) => hiddenArticles.has(i) ? null : (
               <ArticleItem key={i} item={item} index={i} onDelete={()=>hideArticle(i)}/>
             ))
@@ -1437,7 +1414,6 @@ export default function App() {
   const [view, setView]           = useState("home"); // home | generating | report
   const [reportData, setReportData] = useState(null);
   const [steps, setSteps]         = useState([]);
-  const [showSettings, setShowSettings] = useState(false);
 
   const setStep = (i, status) => setSteps(s => s.map((st,idx) => idx===i ? {...st,status} : st));
 
@@ -1483,18 +1459,11 @@ export default function App() {
       {view === "home" && (
         <HomeScreen
           onGenerate={handleGenerate}
-          onSettings={()=>setShowSettings(true)}
         />
       )}
       {view === "generating" && <GeneratingScreen steps={steps}/>}
       {view === "report" && (
-        <ReportScreen data={reportData} onBack={()=>setView("home")} onSettings={()=>setShowSettings(true)}/>
-      )}
-      {showSettings && (
-        <SettingsModal
-          onClose={()=>setShowSettings(false)}
-          onSave={()=>setShowSettings(false)}
-        />
+        <ReportScreen data={reportData} onBack={()=>setView("home")}/>
       )}
     </>
   );
