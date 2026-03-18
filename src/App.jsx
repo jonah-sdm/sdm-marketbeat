@@ -754,6 +754,14 @@ ${geoNews.map((n,i)=>`${i+1}. HEADLINE: ${n.title}\nCOVERAGE: ${(n.sources||[n.s
 function buildExportHTML(rootEl, date) {
   const clone = rootEl.cloneNode(true);
   clone.querySelectorAll(".noprint").forEach(el => el.remove());
+  // Clear chart containers so CHART06/07_SCRIPT can reinitialize cleanly in the export
+  ["btc-chart-daily","btc-rsi-daily","btc-chart-4h","btc-rsi-4h","btc-price-daily","btc-price-4h"].forEach(id => {
+    const el = clone.querySelector(`#${id}`); if (el) el.innerHTML = "";
+  });
+  const pw = clone.querySelector("#perf-chart-wrap");
+  if (pw) pw.innerHTML = '<div style="padding:20px;font-family:\'Courier New\',monospace;font-size:10px;color:#888">Loading…</div>';
+  const ps = clone.querySelector("#perf-status"); if (ps) ps.innerHTML = "";
+  const pl = clone.querySelector("#perf-legend"); if (pl) pl.innerHTML = "";
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
