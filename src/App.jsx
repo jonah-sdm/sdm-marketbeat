@@ -362,6 +362,14 @@ const NEWS_FEEDS = [
   { url:"https://cryptoslate.com/feed/",                             src:"CryptoSlate" },
 ];
 
+const GEO_FEEDS = [
+  { url:"https://www.theguardian.com/world/rss",                    src:"The Guardian" },
+  { url:"https://www.economist.com/international/rss.xml",          src:"The Economist" },
+  { url:"https://www.economist.com/the-world-this-week/rss.xml",   src:"The Economist" },
+  { url:"https://www.scmp.com/rss/2/feed",                          src:"SCMP" },
+  { url:"https://foreignpolicy.com/feed/",                          src:"Foreign Policy" },
+];
+
 function parseRSS(xmlStr, srcName) {
   try {
     const xml = new DOMParser().parseFromString(xmlStr || "", "text/xml");
@@ -461,9 +469,29 @@ async function fetchNews() {
   return clusterAndRank(all, 7);
 }
 
+async function fetchGeoNews() {
+  const results = await Promise.allSettled(
+    GEO_FEEDS.map(f =>
+      Promise.race([
+        fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(f.url)}`),
+        timeout(5000),
+      ]).then(r => r.json()).then(d => {
+        let xml = d.contents || "";
+        // Handle base64-encoded responses (e.g. Foreign Policy)
+        if (xml.startsWith("data:") && xml.includes("base64,")) {
+          try { xml = atob(xml.split("base64,")[1]); } catch { xml = ""; }
+        }
+        return parseRSS(xml, f.src);
+      })
+    )
+  );
+  const all = results.flatMap(r => r.status === "fulfilled" ? r.value : []);
+  return clusterAndRank(all, 5);
+}
+
 // ── Claude commentary generator ───────────────────────────────────────────────
 // Returns: parsed JSON object on success, { _err: "no_key" | "api_error" | "parse_failed", msg? } on failure
-async function generateCommentary({ date, mkt, drv, btcF, ethF, solF, polyD, news, customArticles=[] }) {
+async function generateCommentary({ date, mkt, drv, btcF, ethF, solF, polyD, news, customArticles=[], geoNews=[] }) {
 
   const btcNet = ETF_BTC.reduce((s,k) => s+(parseFloat(btcF[k])||0), 0);
   const ethNet = ETF_ETH.reduce((s,k) => s+(parseFloat(ethF[k])||0), 0);
@@ -471,6 +499,7 @@ async function generateCommentary({ date, mkt, drv, btcF, ethF, solF, polyD, new
   const allNet = btcNet + ethNet + solNet;
   const upcoming = ECON.filter(e=>{ const d=due(e.date); return d>=0&&d<=14; })
     .sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,6);
+  const totalNews = news.length + customArticles.length;
 
   const prompt = `You are writing SDM MarketBeat, a premium institutional crypto daily brief for OTC derivatives desk clients. Tone: Goldman Sachs research note — precise, measured, data-driven. No markdown. No bullet points in prose fields.
 
@@ -483,11 +512,15 @@ Return ONLY a valid JSON object (no code fences, no extra text) with exactly thi
   "calendar": { "intro": "1 sentence on upcoming macro catalysts" },
   "news": { "intro": "1 sentence on dominant narrative theme" },
   "news_summaries": [
-    { "headline": "topic-focused insight headline describing the market event or theme — never the source name", "summary": "1-2 sentences: content + implication", "source": "Primary source name (e.g. CoinDesk)" }
-  ]
+    { "headline": "insight headline 1", "summary": "1-2 sentences: content + implication", "source": "Source name" },
+    { "headline": "insight headline 2", "summary": "1-2 sentences: content + implication", "source": "Source name" },
+    { "headline": "insight headline 3", "summary": "1-2 sentences: content + implication", "source": "Source name" }
+  ],
+  "geo_bullets": ["bullet 1 — geopolitical event + crypto/market implication, 15-20 words", "bullet 2", "bullet 3", "bullet 4", "bullet 5"]
 }
 
-IMPORTANT: Every news_summaries headline must describe the market insight or event, not the source. Good: "Bitcoin open interest hits record as retail exits" — Bad: "CoinDesk reports on Bitcoin metrics"
+CRITICAL: news_summaries MUST contain exactly ${totalNews} entries — one per article listed below. Every headline must describe the market insight or event, never the source name. Good: "Bitcoin open interest hits record as retail exits" — Bad: "CoinDesk reports on Bitcoin metrics"
+CRITICAL: geo_bullets MUST contain exactly 5 tight declarative bullets drawn from the geopolitical news below. Each bullet: event + specific crypto/market implication in 15-20 words. Focus on: sanctions, trade policy, regulation, energy prices, central bank moves, dollar dynamics.
 
 DATA FOR ${date}:
 TOP COINS: ${(mkt.coins||[]).map(c=>`${c.symbol} $${c.price>=1000?f(c.price,0):f(c.price,2)} (${pct(c.change24h)})`).join(" | ")}
@@ -507,7 +540,11 @@ NEWS TO SUMMARIZE (ranked by cross-source coverage — higher coverage = more br
 ${news.map((n,i)=>`${i+1}. HEADLINE: ${n.title}\nCOVERAGE: ${(n.sources||[n.src]).join(", ")} (${(n.sources||[n.src]).length}/6 sources)\nDESCRIPTION: ${n.description||n.title}`).join("\n\n")}${customArticles.length?`
 
 ADDITIONAL ARTICLES PROVIDED BY USER (summarize these alongside the news above — include each as its own entry in news_summaries):
-${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0,3000)}`).join("\n\n---\n\n")}`:""}`;
+${customArticles.map((a,i)=>`[CUSTOM ${i+1}] SOURCE: ${a.name}\n${a.text.slice(0,3000)}`).join("\n\n---\n\n")}`:""}${geoNews.length?`
+
+GEOPOLITICAL NEWS (summarize with focus on crypto/market implications — sanctions, trade, regulation, energy, central banks):
+${geoNews.map((n,i)=>`${i+1}. HEADLINE: ${n.title}\nCOVERAGE: ${(n.sources||[n.src]).join(", ")}\nDESCRIPTION: ${n.description||n.title}`).join("\n\n")}`:""}`;
+
 
   let resp;
   try {
@@ -559,26 +596,16 @@ function buildExportHTML(rootEl, date) {
 </body></html>`;
 }
 
-// ── Export: Shareable link (GitHub-backed) ────────────────────────────────────
+// ── Export: Shareable link (server-side via /api/share) ──────────────────────
 async function createShareLink(html, date) {
-  const token = getGhToken();
-  if (!token) return null;
-  const filename = `marketbeat-${date}.html`;
-  const encoded = btoa(unescape(encodeURIComponent(html)));
-  // Check if file exists first (to get SHA for update)
-  let sha;
-  try {
-    const check = await fetch(`https://api.github.com/repos/jonah-sdm/sdm-reports/contents/${filename}`,
-      { headers:{ Authorization:`token ${token}` } });
-    if (check.ok) { const j = await check.json(); sha = j.sha; }
-  } catch {}
-  const resp = await fetch(`https://api.github.com/repos/jonah-sdm/sdm-reports/contents/${filename}`, {
-    method:"PUT",
-    headers:{ Authorization:`token ${token}`, "Content-Type":"application/json" },
-    body: JSON.stringify({ message:`MarketBeat ${date}`, content:encoded, ...(sha?{sha}:{}) }),
+  const resp = await fetch("/api/share", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ html, date }),
   });
   if (!resp.ok) return null;
-  return `https://htmlpreview.github.io/?https://raw.githubusercontent.com/jonah-sdm/sdm-reports/main/${filename}`;
+  const { url } = await resp.json();
+  return url || null;
 }
 
 // ── SDM Logo ──────────────────────────────────────────────────────────────────
@@ -1229,7 +1256,7 @@ function ArticleItem({ item, index, onDelete }) {
 
 // ── Report Screen ─────────────────────────────────────────────────────────────
 function ReportScreen({ data, onBack }) {
-  const { date, mkt, drv, btcF, ethF, solF, polyD, news, commentary } = data;
+  const { date, mkt, drv, btcF, ethF, solF, polyD, news, commentary, geoNews=[] } = data;
   const rootRef = useRef(null);
   const [shareMsg, setShareMsg] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -1284,7 +1311,7 @@ function ReportScreen({ data, onBack }) {
       await navigator.clipboard.writeText(url).catch(()=>{});
       setShareMsg("Link copied to clipboard ✓");
     } else {
-      setShareMsg("Add GitHub token in Settings to enable sharing");
+      setShareMsg("Failed to create share link");
     }
     setTimeout(()=>setShareMsg(""), 4000);
   };
@@ -1347,7 +1374,7 @@ function ReportScreen({ data, onBack }) {
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
             <SDMLogo width={150}/>
             <div style={{textAlign:"right"}}>
-              <div style={{fontFamily:MONO,fontSize:10,color:MUTED,letterSpacing:3,textTransform:"uppercase",marginBottom:4}}>
+              <div style={{fontFamily:HEAD,fontSize:18,fontWeight:700,color:INK,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>
                 MarketBeat
               </div>
               <div style={{fontFamily:HEAD,fontSize:13,fontWeight:600,color:INK}}>{fmtLong(date)}</div>
@@ -1364,14 +1391,14 @@ function ReportScreen({ data, onBack }) {
         </div>
 
         {/* Executive Summary */}
-        <div style={{padding:W,paddingBottom:0}}>
+        <div style={{padding:W,paddingBottom:0,paddingTop:32}}>
           <div style={{marginBottom:24}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
-              <div style={{width:3,height:18,background:GOLD_BRAND,borderRadius:2,flexShrink:0}}/>
-              <span style={{fontFamily:MONO,fontSize:9,fontWeight:700,color:MUTED,letterSpacing:3,textTransform:"uppercase"}}>
-                Executive Summary
+            <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:10}}>
+              <span style={{fontFamily:HEAD,fontSize:15,fontWeight:700,color:INK,letterSpacing:0.3,textTransform:"uppercase"}}>
+                Daily Market Brief
               </span>
             </div>
+            <div style={{height:2,background:GOLD_BRAND,marginBottom:16}}/>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {commentary?._err && (
                 <div style={{background:NEGL, border:`1px solid ${NEG}`, borderRadius:4,
@@ -1411,6 +1438,38 @@ function ReportScreen({ data, onBack }) {
             </div>
           </div>
         </div>
+
+        {/* Geopolitics Bullets */}
+        {Array.isArray(commentary?.geo_bullets) && commentary.geo_bullets.length > 0 && (
+          <div style={{padding:W, paddingBottom:0, paddingTop:32}}>
+            <div style={{marginBottom:24}}>
+              <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:10}}>
+                <span style={{fontFamily:HEAD,fontSize:15,fontWeight:700,color:INK,letterSpacing:0.3,textTransform:"uppercase"}}>
+                  Geopolitics — Market Implications
+                </span>
+              </div>
+              <div style={{height:2,background:GOLD_BRAND,marginBottom:16}}/>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {commentary.geo_bullets.map((bullet, i) => (
+                  <div key={i} style={{
+                    display:"flex",alignItems:"flex-start",gap:12,
+                    background:BGOFF,
+                    border:`1px solid ${RULE}`,
+                    borderRadius:6,padding:"11px 14px",
+                  }}>
+                    <span style={{fontFamily:MONO,fontSize:9,fontWeight:700,color:MUTED,marginTop:2,flexShrink:0,letterSpacing:1}}>◆</span>
+                    <RichTextBlock style={{fontFamily:BODY,fontSize:12.5,color:INK,lineHeight:1.65,fontWeight:400}}>
+                      {bullet}
+                    </RichTextBlock>
+                  </div>
+                ))}
+                <div style={{fontFamily:MONO,fontSize:9,color:MUTED,marginTop:4}}>
+                  Source: Reuters · Foreign Policy · BBC World · The Guardian · CFR · Summarized by Claude (Anthropic)
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {divider}
 
@@ -1680,22 +1739,23 @@ export default function App() {
 
     // Step 0: all data sources in parallel
     setStep(0,"loading");
-    const [mkt, drv, polyD, rawNews] = await Promise.all([
+    const [mkt, drv, polyD, rawNews, geoNews] = await Promise.all([
       fetchMarket().catch(()=>mockMkt),
       fetchDerivatives().catch(()=>mockDrv),
       fetchPoly().catch(()=>({})),
       fetchNews().then(n => n.length ? n : mockNewsFallback).catch(()=>mockNewsFallback),
+      fetchGeoNews().catch(()=>[]),
     ]);
     const news = rawNews.slice(0, Math.max(0, 5 - customArticles.length));
     setStep(0,"done");
 
     // Step 1: Claude — .catch() guarantees we ALWAYS reach setView("report")
     setStep(1,"loading");
-    const commentary = await generateCommentary({ date, mkt, drv, btcF, ethF, solF, polyD:polyD||{}, news, customArticles })
+    const commentary = await generateCommentary({ date, mkt, drv, btcF, ethF, solF, polyD:polyD||{}, news, customArticles, geoNews })
       .catch(err => ({ _err:"exception", msg:err.message }));
     setStep(1,"done");
 
-    setReportData({ date, mkt, drv, btcF, ethF, solF, polyD:polyD||{}, news, commentary, customArticles });
+    setReportData({ date, mkt, drv, btcF, ethF, solF, polyD:polyD||{}, news, commentary, customArticles, geoNews });
     setView("report");
   };
 
