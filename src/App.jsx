@@ -1743,7 +1743,7 @@ export default function App() {
       fetchMarket().catch(()=>mockMkt),
       fetchDerivatives().catch(()=>mockDrv),
       fetchPoly().catch(()=>({})),
-      fetchNews().catch(()=>mockNewsFallback),
+      fetchNews().then(n => n.length ? n : mockNewsFallback).catch(()=>mockNewsFallback),
       fetchGeoNews().catch(()=>[]),
     ]);
     const news = rawNews.slice(0, Math.max(0, 5 - customArticles.length));
