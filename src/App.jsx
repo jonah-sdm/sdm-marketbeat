@@ -1572,7 +1572,7 @@ function ReportScreen({ data, onBack }) {
             ))
           }
           <div style={{fontFamily:MONO,fontSize:9,color:MUTED,marginTop:16}}>
-            Source: CoinDesk RSS · Summarized by Claude (Anthropic) · For internal research use only
+            Source: The Block · CoinDesk · Cointelegraph · Blockworks · Decrypt · CryptoSlate · Summarized by Claude (Anthropic)
           </div>
         </ReportSection>}
 
@@ -1684,7 +1684,7 @@ export default function App() {
       fetchMarket().catch(()=>mockMkt),
       fetchDerivatives().catch(()=>mockDrv),
       fetchPoly().catch(()=>({})),
-      fetchNews().catch(()=>mockNewsFallback),
+      fetchNews().then(n => n.length ? n : mockNewsFallback).catch(()=>mockNewsFallback),
     ]);
     const news = rawNews.slice(0, Math.max(0, 5 - customArticles.length));
     setStep(0,"done");
