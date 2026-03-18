@@ -187,6 +187,182 @@ loadKrakenPerf();
 })();
 `;
 
+// ── Chart init functions (module-level, called directly from useEffect) ───────
+const CHART_THEME_OBJ = {
+  layout: { background:{color:'#fafbfc'}, textColor:'#555e6b', fontSize:10 },
+  grid: { vertLines:{color:'#f0f3f5'}, horzLines:{color:'#f0f3f5'} },
+  crosshair: { vertLine:{color:'#aab0b8',labelBackgroundColor:'#000'}, horzLine:{color:'#aab0b8',labelBackgroundColor:'#000'} },
+  timeScale: { borderColor:'#dde1e6', timeVisible:true },
+  rightPriceScale: { borderColor:'#dde1e6' },
+};
+
+function _cgFetch(url, retries=3) {
+  return fetch(url).then(r => {
+    if (r.status === 429 && retries > 0) return new Promise(res => setTimeout(res, 1400)).then(() => _cgFetch(url, retries-1));
+    return r.json();
+  });
+}
+
+function _calcEMA(candles, period) {
+  const k = 2/(period+1); let ema = null; const out = [];
+  for (const c of candles) { ema = ema===null ? c.close : c.close*k + ema*(1-k); out.push({time:c.time, value:ema}); }
+  return out.slice(Math.max(0, period-1));
+}
+
+function _calcRSI(candles, period=14) {
+  const gains=[], losses=[];
+  for (let i=1; i<candles.length; i++) { const d=candles[i].close-candles[i-1].close; gains.push(d>0?d:0); losses.push(d<0?-d:0); }
+  if (gains.length < period) return [];
+  let ag=gains.slice(0,period).reduce((a,b)=>a+b,0)/period, al=losses.slice(0,period).reduce((a,b)=>a+b,0)/period;
+  const rsi=[];
+  for (let i=period; i<gains.length; i++) {
+    const rs = al===0 ? 100 : ag/al;
+    rsi.push({time:candles[i+1].time, value:100-100/(1+rs)});
+    ag=(ag*(period-1)+gains[i])/period; al=(al*(period-1)+losses[i])/period;
+  }
+  return rsi;
+}
+
+function _toCandles(raw) { return raw.map(([ts,o,h,l,c])=>({time:Math.floor(ts/1000),open:o,high:h,low:l,close:c})); }
+
+function _buildPanel(chartId, rsiId, priceId, candles, levels) {
+  const LC = window.LightweightCharts;
+  if (!LC) return null;
+  const chartEl=document.getElementById(chartId), rsiEl=document.getElementById(rsiId), priceEl=document.getElementById(priceId);
+  if (!chartEl || !rsiEl) return null;
+  const chart = LC.createChart(chartEl, {...CHART_THEME_OBJ, width:chartEl.offsetWidth||400, height:280});
+  const cs = chart.addCandlestickSeries({upColor:'#16a34a',downColor:'#dc2626',borderUpColor:'#16a34a',borderDownColor:'#dc2626',wickUpColor:'#16a34a',wickDownColor:'#dc2626'});
+  cs.setData(candles);
+  if (levels) levels.forEach(lvl => cs.createPriceLine({price:lvl.price,color:lvl.color,lineWidth:1,lineStyle:LC.LineStyle.Dashed,axisLabelVisible:true,title:'$'+lvl.price.toLocaleString()}));
+  const e20=chart.addLineSeries({color:'#2563eb',lineWidth:1.5,title:'EMA 20'}); e20.setData(_calcEMA(candles,20));
+  const e50=chart.addLineSeries({color:'#d97706',lineWidth:1.5,title:'EMA 50'}); e50.setData(_calcEMA(candles,50));
+  if (candles.length>=200) { const e200=chart.addLineSeries({color:'#7c3aed',lineWidth:1.5,title:'EMA 200'}); e200.setData(_calcEMA(candles,200)); }
+  const rsiChart = LC.createChart(rsiEl, {...CHART_THEME_OBJ, width:rsiEl.offsetWidth||400, height:72});
+  rsiChart.applyOptions({rightPriceScale:{...CHART_THEME_OBJ.rightPriceScale,scaleMargins:{top:0.1,bottom:0.1}}});
+  const rsiS = rsiChart.addLineSeries({color:'#1a3a5c',lineWidth:1.5,autoscaleInfoProvider:()=>({priceRange:{minValue:0,maxValue:100}})});
+  rsiS.setData(_calcRSI(candles));
+  [{v:30,c:'#dc2626',l:'OS'},{v:50,c:'#aab0b8',l:''},{v:70,c:'#dc2626',l:'OB'}].forEach(({v,c,l})=>rsiS.createPriceLine({price:v,color:c,lineWidth:1,lineStyle:LC.LineStyle.Dashed,axisLabelVisible:v!==50,title:l}));
+  chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r) rsiChart.timeScale().setVisibleLogicalRange(r);});
+  rsiChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(r) chart.timeScale().setVisibleLogicalRange(r);});
+  if (priceEl && candles.length) {
+    const last=candles[candles.length-1], first=candles[0];
+    const p=((last.close-first.close)/first.close*100).toFixed(2), col=p>=0?'#16a34a':'#dc2626';
+    priceEl.innerHTML=`<span style="font-weight:700;font-size:14px">$${last.close.toLocaleString('en-US',{maximumFractionDigits:0})}</span> <span style="color:${col};font-size:11px">${p>=0?'+':''}${p}%</span>`;
+  }
+  new ResizeObserver(()=>{chart.resize(chartEl.offsetWidth||400,280);rsiChart.resize(rsiEl.offsetWidth||400,72);}).observe(chartEl.parentElement||chartEl);
+  return {chart, rsiChart};
+}
+
+async function initBTCCharts() {
+  const LEVELS=[{price:84250,color:'#16a34a'},{price:79500,color:'#16a34a'},{price:65500,color:'#dc2626'},{price:63000,color:'#dc2626'},{price:60250,color:'#dc2626'}];
+  try {
+    const [rawD, raw4h] = await Promise.all([
+      _cgFetch('https://api.coingecko.com/api/v3/coins/bitcoin/ohlc?vs_currency=usd&days=90'),
+      _cgFetch('https://api.coingecko.com/api/v3/coins/bitcoin/ohlc?vs_currency=usd&days=30'),
+    ]);
+    _buildPanel('btc-chart-daily','btc-rsi-daily','btc-price-daily',_toCandles(rawD),LEVELS);
+    _buildPanel('btc-chart-4h','btc-rsi-4h','btc-price-4h',_toCandles(raw4h),null);
+  } catch(e) { console.error('BTC chart error:', e); }
+}
+
+const KRAKEN_COINS_LIST = [
+  {sym:"BTC",pair:"XBTUSD"},{sym:"ETH",pair:"ETHUSD"},{sym:"XRP",pair:"XRPUSD"},
+  {sym:"SOL",pair:"SOLUSD"},{sym:"TRX",pair:"TRXUSD"},{sym:"DOGE",pair:"DOGEUSD"},
+  {sym:"ADA",pair:"ADAUSD"},{sym:"AVAX",pair:"AVAXUSD"},{sym:"LINK",pair:"LINKUSD"},
+  {sym:"SHIB",pair:"SHIBUSD"},{sym:"TON",pair:"TONUSD"},{sym:"SUI",pair:"SUIUSD"},
+  {sym:"XLM",pair:"XLMUSD"},{sym:"DOT",pair:"DOTUSD"},{sym:"LTC",pair:"LTCUSD"},
+  {sym:"BCH",pair:"BCHUSD"},{sym:"HBAR",pair:"HBARUSD"},{sym:"UNI",pair:"UNIUSD"},
+  {sym:"AAVE",pair:"AAVEUSD"},{sym:"PEPE",pair:"PEPEUSD"},{sym:"ICP",pair:"ICPUSD"},
+  {sym:"NEAR",pair:"NEARUSD"},{sym:"APT",pair:"APTUSD"},{sym:"TAO",pair:"TAOUSD"},
+];
+const KRAKEN_LINE_COLORS = ["#1a3a5c","#c41e3a","#2e7d32","#6a1b9a","#e65100","#0277bd","#558b2f","#ad1457","#00695c","#4527a0","#1565c0","#d84315","#37474f","#6d4c41","#00838f","#1b5e20","#880e4f","#bf360c","#263238","#4e342e","#01579b","#827717","#b71c1c","#004d40"];
+
+async function initKrakenPerf() {
+  const cc = {}; KRAKEN_COINS_LIST.forEach((c,i)=>{ cc[c.sym]=KRAKEN_LINE_COLORS[i]; });
+  window._perfColorMap = cc;
+  const stEl = document.getElementById('perf-status');
+  if (stEl) stEl.textContent = 'Fetching all coins in parallel…';
+  const since = Math.floor(Date.now()/1000) - 5*24*3600;
+  const normalize = candles => {
+    if (!candles.length) return [];
+    const base = parseFloat(candles[0][4]); if (!base) return [];
+    return candles.map(c => ({t:c[0], v:((parseFloat(c[4])-base)/base)*100}));
+  };
+  const results = await Promise.allSettled(KRAKEN_COINS_LIST.map(c =>
+    fetch(`https://api.kraken.com/0/public/OHLC?pair=${c.pair}&interval=60&since=${since}`)
+      .then(r=>r.json())
+      .then(j=>{ const k=Object.keys(j.result).find(x=>x!=='last'); return {sym:c.sym,candles:j.result[k]||[]}; })
+  ));
+  const pd = results.filter(r=>r.status==='fulfilled')
+    .map(r=>({sym:r.value.sym,data:normalize(r.value.candles)}))
+    .filter(d=>d.data.length>0);
+  const ok = pd.length;
+  if (stEl) stEl.innerHTML = `Done — ${ok}/${KRAKEN_COINS_LIST.length} coins loaded ✓ <button onclick="window.loadKrakenPerf()" style="margin-left:10px;font-family:'Courier New',monospace;font-size:9px;padding:2px 8px;border:1px solid #aab0b8;background:none;cursor:pointer;border-radius:2px;color:#555e6b">Refresh</button>`;
+  window._perfDataStore = pd;
+  _drawPerfChart(pd, cc);
+  _renderPerfLegend(pd, cc);
+  window.loadKrakenPerf = initKrakenPerf;
+}
+
+function _drawPerfChart(data, cc) {
+  const wrap = document.getElementById('perf-chart-wrap'); if (!wrap) return;
+  if (!data.length) { wrap.innerHTML='<p style="padding:20px;color:#888;font-size:11px;font-family:Courier New,monospace">No data.</p>'; return; }
+  const allT=[], allV=[];
+  data.forEach(d=>d.data.forEach(p=>{allT.push(p.t);allV.push(p.v);}));
+  const tMn=Math.min(...allT), tMx=Math.max(...allT);
+  let vMn=Math.min(...allV), vMx=Math.max(...allV);
+  const vPad=(vMx-vMn)*0.08||1; vMn-=vPad; vMx+=vPad;
+  const W=860,H=380,PL=54,PR=12,PT=12,PB=32,cW=W-PL-PR,cH=H-PT-PB;
+  window._perfDims={tMn,tMx,vMn,vMx,W,H,PL,PR,PT,PB};
+  const xp=t=>PL+(t-tMn)/(tMx-tMn||1)*cW;
+  const yp=v=>PT+cH-(v-vMn)/(vMx-vMn||1)*cH;
+  const parts=[];
+  for(let i=0;i<=5;i++){const v=vMn+(vMx-vMn)*i/5,y=yp(v);parts.push(`<line x1="${PL}" y1="${y}" x2="${W-PR}" y2="${y}" stroke="#f0f0f0" stroke-width="0.8"/><text x="${PL-5}" y="${y+3}" text-anchor="end" font-family="Courier New,monospace" font-size="9" fill="#888">${v.toFixed(1)}%</text>`);}
+  const zy=yp(0); if(zy>=PT&&zy<=H-PB) parts.push(`<line x1="${PL}" y1="${zy}" x2="${W-PR}" y2="${zy}" stroke="#aab0b8" stroke-width="1" stroke-dasharray="4,3"/>`);
+  for(let d=0;d<=5;d++){const t=tMn+(tMx-tMn)*d/5,x=xp(t),dt=new Date(t*1000),lbl=`${dt.getMonth()+1}/${dt.getDate()}`;parts.push(`<text x="${x}" y="${H-PB+16}" text-anchor="middle" font-family="Courier New,monospace" font-size="9" fill="#888">${lbl}</text>`);}
+  data.forEach(d=>{const color=cc[d.sym]||'#888';const pd=d.data.map((p,i)=>`${i===0?'M':'L'}${xp(p.t).toFixed(1)} ${yp(p.v).toFixed(1)}`).join(' ');parts.push(`<path d="${pd}" stroke="${color}" stroke-width="1.3" fill="none" id="perf-line-${d.sym}" onmouseenter="window._perfHover('${d.sym}')" onmouseleave="window._perfHover(null)" style="cursor:pointer"/>`);});
+  parts.push(`<g id="perf-crosshair" style="display:none"><line id="perf-ch-x" x1="0" x2="0" y1="${PT}" y2="${H-PB}" stroke="#aab0b8" stroke-width="0.8" stroke-dasharray="3,2"/></g>`);
+  parts.push(`<foreignObject id="perf-tooltip" x="0" y="0" width="175" height="330" style="display:none;pointer-events:none"><div xmlns="http://www.w3.org/1999/xhtml" id="perf-tooltip-inner" style="background:rgba(255,255,255,0.97);border:1px solid #dde1e6;border-radius:3px;padding:8px 10px;font-family:Courier New,monospace;font-size:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1)"></div></foreignObject>`);
+  wrap.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block" id="perf-svg" onmousemove="window._perfMousemove(event)" onmouseleave="window._perfMouseout()">${parts.join('')}</svg>`;
+  window._perfHover=sym=>{
+    document.querySelectorAll('[id^="perf-line-"]').forEach(el=>{
+      if(sym===null){el.setAttribute('stroke-width','1.3');el.setAttribute('opacity','1');}
+      else if(el.id===`perf-line-${sym}`){el.setAttribute('stroke-width','2.5');el.setAttribute('opacity','1');}
+      else{el.setAttribute('stroke-width','1.3');el.setAttribute('opacity','0.12');}
+    });
+    document.querySelectorAll('[data-perf-sym]').forEach(el=>{
+      if(sym===null)el.style.opacity='1';
+      else if(el.dataset.perfSym===sym){el.style.opacity='1';el.style.fontWeight='bold';}
+      else el.style.opacity='0.35';
+    });
+  };
+  window._perfMousemove=ev=>{
+    const dims=window._perfDims,svg=document.getElementById('perf-svg');
+    if(!svg||!dims||!window._perfDataStore)return;
+    const rect=svg.getBoundingClientRect(),scaleX=dims.W/rect.width,mx=(ev.clientX-rect.left)*scaleX;
+    if(mx<dims.PL||mx>dims.W-dims.PR)return window._perfMouseout();
+    const t=dims.tMn+(mx-dims.PL)/(dims.W-dims.PL-dims.PR)*(dims.tMx-dims.tMn);
+    const chx=document.getElementById('perf-ch-x'),chg=document.getElementById('perf-crosshair');
+    if(chx){chx.setAttribute('x1',mx);chx.setAttribute('x2',mx);}if(chg)chg.style.display='';
+    const snap=window._perfDataStore.map(d=>{const best=d.data.length?d.data.reduce((a,b)=>Math.abs(b.t-t)<Math.abs(a.t-t)?b:a):null;return{sym:d.sym,v:best?best.v:0};}).sort((a,b)=>b.v-a.v).slice(0,12);
+    const dt=new Date(t*1000),dateStr=`${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:00`;
+    let html=`<div style="font-weight:700;margin-bottom:5px;color:#555e6b;border-bottom:1px solid #f0f0f0;padding-bottom:4px">${dateStr}</div>`;
+    snap.forEach(s=>{const col=window._perfColorMap[s.sym]||'#888',sign=s.v>=0?'+':'';html+=`<div style="display:flex;justify-content:space-between;gap:10px;line-height:1.7"><span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${col};margin-right:3px;vertical-align:middle"></span>${s.sym}</span><span style="color:${s.v>=0?'#16a34a':'#dc2626'}">${sign}${s.v.toFixed(2)}%</span></div>`;});
+    const tooltip=document.getElementById('perf-tooltip'),inner=document.getElementById('perf-tooltip-inner');
+    if(tooltip&&inner){inner.innerHTML=html;const toX=mx+8>dims.W-183?mx-183:mx+8;tooltip.setAttribute('x',toX);tooltip.setAttribute('y',dims.PT);tooltip.style.display='';}
+  };
+  window._perfMouseout=()=>{
+    const chg=document.getElementById('perf-crosshair');if(chg)chg.style.display='none';
+    const t=document.getElementById('perf-tooltip');if(t)t.style.display='none';
+  };
+}
+
+function _renderPerfLegend(data, cc) {
+  const el=document.getElementById('perf-legend'); if(!el)return;
+  const sorted=[...data].sort((a,b)=>{const av=a.data.length?a.data[a.data.length-1].v:0,bv=b.data.length?b.data[b.data.length-1].v:0;return bv-av;});
+  el.innerHTML=sorted.map(d=>{const color=cc[d.sym]||'#888',v=d.data.length?d.data[d.data.length-1].v:0,sign=v>=0?'+':'',vc=v>=0?'#16a34a':'#dc2626';return `<div data-perf-sym="${d.sym}" onmouseenter="window._perfHover('${d.sym}')" onmouseleave="window._perfHover(null)" style="display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:3px;cursor:pointer;font-family:Courier New,monospace;font-size:10px"><span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0;display:inline-block"></span><span>${d.sym}</span><span style="color:${vc};margin-left:auto;font-size:9px">${sign}${v.toFixed(1)}%</span></div>`;}).join('');
+}
+
 // ── localStorage ──────────────────────────────────────────────────────────────
 const LS_GH_TOKEN  = "sdm_mb_gh_token";
 const getGhToken   = () => localStorage.getItem(LS_GH_TOKEN) || import.meta.env.VITE_GH_TOKEN || "";
@@ -511,11 +687,7 @@ Return ONLY a valid JSON object (no code fences, no extra text) with exactly thi
   "etf": { "intro": "2 sentences on ETF flows and institutional demand signal" },
   "calendar": { "intro": "1 sentence on upcoming macro catalysts" },
   "news": { "intro": "1 sentence on dominant narrative theme" },
-  "news_summaries": [
-    { "headline": "insight headline 1", "summary": "1-2 sentences: content + implication", "source": "Source name" },
-    { "headline": "insight headline 2", "summary": "1-2 sentences: content + implication", "source": "Source name" },
-    { "headline": "insight headline 3", "summary": "1-2 sentences: content + implication", "source": "Source name" }
-  ],
+  "news_summaries": [{ "headline": "...", "summary": "...", "source": "..." }],
   "geo_bullets": ["bullet 1 — geopolitical event + crypto/market implication, 15-20 words", "bullet 2", "bullet 3", "bullet 4", "bullet 5"]
 }
 
@@ -1266,9 +1438,8 @@ function ReportScreen({ data, onBack }) {
   const hideArticle = i => setHiddenArticles(s => new Set([...s, i]));
 
   useEffect(() => {
-    // lightweight-charts is loaded in index.html; run chart init scripts directly
-    try { (new Function(CHART06_SCRIPT))(); } catch(e) { console.error("Chart06 init error:", e); }
-    try { (new Function(CHART07_SCRIPT))(); } catch(e) { console.error("Chart07 init error:", e); }
+    initBTCCharts();
+    initKrakenPerf();
   }, []);
 
   const btcNet = ETF_BTC.reduce((s,k)=>s+(parseFloat(btcF[k])||0),0);
