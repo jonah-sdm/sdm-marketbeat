@@ -1,0 +1,519 @@
+<!-- DIVIDER before section 06 -->
+<div style="height: 0.5px; background: rgb(232, 232, 232); margin: 28px 64px 0px;"></div>
+
+<!-- SECTION 06: BTC Technical Charts via CoinGecko OHLC -->
+<div style="margin-bottom: 0px;">
+  <div style="padding: 32px 64px 0px;">
+    <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px;">
+      <span style="font-family: 'Courier New','Lucida Console',monospace; font-size: 10px; color: rgb(136,136,136); letter-spacing: 2px;">06</span>
+      <span style="font-family: Montserrat,'Helvetica Neue',Arial,sans-serif; font-size: 15px; font-weight: 700; color: rgb(0,0,0); letter-spacing: 0.3px; text-transform: uppercase;">BTC Technical Analysis — Daily &amp; 4H</span>
+    </div>
+    <div style="height: 2px; background: rgb(255,195,44); margin-bottom: 16px;"></div>
+    <p style="font-family: Poppins,'Helvetica Neue',Arial,sans-serif; font-size: 13px; color: rgb(0,0,0); line-height: 1.75; margin-bottom: 20px;">
+      Bitcoin daily and 4-hour OHLC candlestick structure with EMA 20/50/200 overlays and RSI(14). Data from CoinGecko — same source as all other market data in this report.
+    </p>
+  </div>
+  <div style="padding: 0px 64px;">
+
+    <!-- Key levels + EMA legend strip -->
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+      <span style="font-family: 'Courier New',monospace; font-size: 9px; color: rgb(136,136,136); letter-spacing: 1.5px; text-transform: uppercase; margin-right: 4px;">KEY LEVELS</span>
+      <span style="font-size: 11px; font-weight: 600; border: 1px solid rgb(22,163,74); color: rgb(22,163,74); border-radius: 2px; padding: 2px 7px; font-variant-numeric: tabular-nums;">$84,250</span>
+      <span style="font-size: 11px; font-weight: 600; border: 1px solid rgb(22,163,74); color: rgb(22,163,74); border-radius: 2px; padding: 2px 7px; font-variant-numeric: tabular-nums;">$79,500</span>
+      <span style="font-size: 11px; font-weight: 600; border: 1px solid rgb(192,57,43); color: rgb(192,57,43); border-radius: 2px; padding: 2px 7px; font-variant-numeric: tabular-nums;">$65,500</span>
+      <span style="font-size: 11px; font-weight: 600; border: 1px solid rgb(192,57,43); color: rgb(192,57,43); border-radius: 2px; padding: 2px 7px; font-variant-numeric: tabular-nums;">$63,000</span>
+      <span style="font-size: 11px; font-weight: 600; border: 1px solid rgb(192,57,43); color: rgb(192,57,43); border-radius: 2px; padding: 2px 7px; font-variant-numeric: tabular-nums;">$60,250</span>
+      <span style="margin-left: auto; font-family: Poppins,sans-serif; font-size: 11px; color: rgb(136,136,136);">
+        EMA 20 <span style="color:#2563eb; font-weight:700;">—</span> &nbsp;
+        EMA 50 <span style="color:#d97706; font-weight:700;">—</span> &nbsp;
+        EMA 200 <span style="color:#7c3aed; font-weight:700;">—</span>
+      </span>
+    </div>
+
+    <!-- Chart panels grid -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 8px;">
+
+      <!-- Daily panel -->
+      <div style="background: rgb(250,251,252); border: 1px solid rgb(228,232,237); border-radius: 3px; padding: 14px; min-width: 0;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+          <div>
+            <div style="font-family:Montserrat,sans-serif; font-size:13px; font-weight:700; color:rgb(0,0,0);">BTC — Daily</div>
+            <div style="font-family:Poppins,sans-serif; font-size:11px; color:rgb(136,136,136);">90 days · 1D candles · CoinGecko</div>
+          </div>
+          <div id="btc-daily-price" style="text-align:right; min-width:90px;"></div>
+        </div>
+        <div id="chart-daily" style="width:100%; height:280px; position:relative;"></div>
+        <div style="border-top:1px solid rgb(228,232,237); padding-top:4px; margin-top:6px;">
+          <div style="font-family:'Courier New',monospace; font-size:9px; color:rgb(170,176,184); text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">RSI (14)</div>
+          <div id="rsi-daily" style="width:100%; height:72px;"></div>
+        </div>
+      </div>
+
+      <!-- 4H panel -->
+      <div style="background: rgb(250,251,252); border: 1px solid rgb(228,232,237); border-radius: 3px; padding: 14px; min-width: 0;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+          <div>
+            <div style="font-family:Montserrat,sans-serif; font-size:13px; font-weight:700; color:rgb(0,0,0);">BTC — 4H</div>
+            <div style="font-family:Poppins,sans-serif; font-size:11px; color:rgb(136,136,136);">30 days · 4H candles · CoinGecko</div>
+          </div>
+          <div id="btc-4h-price" style="text-align:right; min-width:90px;"></div>
+        </div>
+        <div id="chart-4h" style="width:100%; height:280px; position:relative;"></div>
+        <div style="border-top:1px solid rgb(228,232,237); padding-top:4px; margin-top:6px;">
+          <div style="font-family:'Courier New',monospace; font-size:9px; color:rgb(170,176,184); text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">RSI (14)</div>
+          <div id="rsi-4h" style="width:100%; height:72px;"></div>
+        </div>
+      </div>
+
+    </div>
+    <div style="font-family:'Courier New','Lucida Console',monospace; font-size:9px; color:rgb(136,136,136); margin-top:4px;">Source: CoinGecko Public API · bitcoin/ohlc · Updated on page load</div>
+  </div>
+</div>
+
+
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+
+<script>
+// ─── SHARED ────────────────────────────────────────────────
+const CG = 'https://api.coingecko.com/api/v3';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function fmtP(p) { return p >= 1000 ? '$' + (p/1000).toFixed(1) + 'K' : '$' + p.toFixed(2); }
+function fmtPct(v) { return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
+
+async function cgFetch(url, retries=3) {
+  for (let i = 0; i < retries; i++) {
+    const r = await fetch(CG + url);
+    if (r.status === 429) { await sleep(1400 * (i + 1)); continue; }
+    if (!r.ok) throw new Error('CoinGecko HTTP ' + r.status);
+    return r.json();
+  }
+  throw new Error('CoinGecko rate limited');
+}
+
+// ─── EMA ───────────────────────────────────────────────────
+function calcEMA(candles, period) {
+  const k = 2 / (period + 1);
+  let ema = null;
+  const out = [];
+  for (const c of candles) {
+    ema = ema === null ? c.close : c.close * k + ema * (1 - k);
+    out.push({ time: c.time, value: ema });
+  }
+  return out.slice(Math.max(0, period - 1));
+}
+
+// ─── RSI ───────────────────────────────────────────────────
+function calcRSI(candles, period=14) {
+  const gains=[], losses=[];
+  for (let i=1; i<candles.length; i++) {
+    const d = candles[i].close - candles[i-1].close;
+    gains.push(d > 0 ? d : 0);
+    losses.push(d < 0 ? -d : 0);
+  }
+  if (gains.length < period) return [];
+  let ag = gains.slice(0, period).reduce((a,b)=>a+b,0) / period;
+  let al = losses.slice(0, period).reduce((a,b)=>a+b,0) / period;
+  const rsi = [];
+  for (let i = period; i < gains.length; i++) {
+    const rs = al === 0 ? 100 : ag / al;
+    rsi.push({ time: candles[i+1].time, value: 100 - 100 / (1 + rs) });
+    ag = (ag * (period - 1) + gains[i]) / period;
+    al = (al * (period - 1) + losses[i]) / period;
+  }
+  return rsi;
+}
+
+// ─── BTC CANDLESTICK CHARTS ─────────────────────────────────
+const CHART_OPTS = {
+  layout: { background: { color: '#fafbfc' }, textColor: '#555e6b', fontSize: 10, fontFamily: "Poppins,'Helvetica Neue',sans-serif" },
+  grid: { vertLines: { color: '#f0f3f5' }, horzLines: { color: '#f0f3f5' } },
+  crosshair: { vertLine: { color: '#aab0b8', width: 1, labelBackgroundColor: '#000' }, horzLine: { color: '#aab0b8', width: 1, labelBackgroundColor: '#000' } },
+  timeScale: { borderColor: '#dde1e6', timeVisible: true, secondsVisible: false },
+  rightPriceScale: { borderColor: '#dde1e6' },
+};
+const CANDLE_STYLE = {
+  upColor: '#16a34a', downColor: '#dc2626',
+  borderUpColor: '#16a34a', borderDownColor: '#dc2626',
+  wickUpColor: '#16a34a', wickDownColor: '#dc2626',
+};
+const S_R_LEVELS = [
+  { price: 84250, label: '84,250', color: '#16a34a' },
+  { price: 79500, label: '79,500', color: '#16a34a' },
+  { price: 65500, label: '65,500', color: '#dc2626' },
+  { price: 63000, label: '63,000', color: '#dc2626' },
+  { price: 60250, label: '60,250', color: '#dc2626' },
+];
+
+function setPriceHeader(elId, candles) {
+  const el = document.getElementById(elId);
+  if (!el || !candles.length) return;
+  const last = candles[candles.length - 1];
+  const chg = ((last.close - last.open) / last.open) * 100;
+  el.innerHTML =
+    `<span style="display:block;font-family:Montserrat,sans-serif;font-size:15px;font-weight:700;color:#000;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;">${fmtP(last.close)}</span>` +
+    `<span style="font-family:Poppins,sans-serif;font-size:12px;font-weight:600;color:${chg>=0?'#16a34a':'#dc2626'};">${fmtPct(chg)}</span>`;
+}
+
+function buildPanel(chartId, rsiId, priceId, candles, emas, levels) {
+  const chartEl = document.getElementById(chartId);
+  const rsiEl   = document.getElementById(rsiId);
+  if (!chartEl || !rsiEl) return;
+
+  // Main chart
+  const chart = LightweightCharts.createChart(chartEl, { ...CHART_OPTS, width: chartEl.clientWidth, height: 280 });
+  const cs = chart.addCandlestickSeries(CANDLE_STYLE);
+  cs.setData(candles);
+
+  // EMAs
+  const emaColors = ['#2563eb', '#d97706', '#7c3aed'];
+  emas.forEach(({ period, idx }) => {
+    const s = chart.addLineSeries({ color: emaColors[idx], lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false });
+    s.setData(calcEMA(candles, period));
+  });
+
+  // S/R lines (daily only)
+  if (levels) {
+    levels.forEach(l => cs.createPriceLine({ price: l.price, color: l.color, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '$' + l.label }));
+  }
+
+  chart.timeScale().fitContent();
+  setPriceHeader(priceId, candles);
+
+  // RSI chart
+  const rsiChart = LightweightCharts.createChart(rsiEl, { ...CHART_OPTS, width: rsiEl.clientWidth, height: 72 });
+  const rsiSeries = rsiChart.addLineSeries({
+    color: '#1a3a5c', lineWidth: 1.5, priceLineVisible: false, lastValueVisible: true,
+    autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
+  });
+  rsiSeries.setData(calcRSI(candles));
+  [30, 50, 70].forEach(v => rsiSeries.createPriceLine({ price: v, color: v===50?'#c8cdd3':'#fca5a5', lineWidth: 1, lineStyle: v===50?2:3, axisLabelVisible: v!==50, title: v===30?'OS':v===70?'OB':'' }));
+  rsiChart.timeScale().fitContent();
+
+  // Sync scroll
+  chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r) rsiChart.timeScale().setVisibleLogicalRange(r); });
+  rsiChart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r) chart.timeScale().setVisibleLogicalRange(r); });
+
+  // Responsive
+  new ResizeObserver(() => {
+    if (chartEl) chart.applyOptions({ width: chartEl.clientWidth });
+    if (rsiEl)   rsiChart.applyOptions({ width: rsiEl.clientWidth });
+  }).observe(chartEl);
+}
+
+async function loadBTCCharts() {
+  try {
+    // CoinGecko /coins/{id}/ohlc
+    // days=90 -> daily candles | days=30 -> 4h candles (free tier granularity)
+    // Returns [[timestamp_ms, open, high, low, close], ...]
+    const [rawDaily, raw4h] = await Promise.all([
+      cgFetch('/coins/bitcoin/ohlc?vs_currency=usd&days=90'),
+      cgFetch('/coins/bitcoin/ohlc?vs_currency=usd&days=30'),
+    ]);
+
+    const toCandles = raw => raw.map(([ts, o, h, l, c]) => ({
+      time: Math.floor(ts / 1000),
+      open: o, high: h, low: l, close: c,
+    }));
+
+    const daily = toCandles(rawDaily);
+    const h4    = toCandles(raw4h);
+
+    buildPanel('chart-daily', 'rsi-daily', 'btc-daily-price', daily,
+      [{ period:20, idx:0 }, { period:50, idx:1 }, { period:200, idx:2 }], S_R_LEVELS);
+    buildPanel('chart-4h', 'rsi-4h', 'btc-4h-price', h4,
+      [{ period:20, idx:0 }, { period:50, idx:1 }], null);
+
+  } catch (e) {
+    ['chart-daily', 'chart-4h'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:280px;font-family:Poppins,sans-serif;font-size:12px;color:#dc2626;">⚠ ${e.message}</div>`;
+    });
+  }
+}
+
+
+// ─── INIT ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadBTCCharts();
+});
+</script>
+
+<!-- DIVIDER before section 07 -->
+<div style="height: 0.5px; background: rgb(232, 232, 232); margin: 28px 64px 0px;"></div>
+
+<!-- SECTION 07: Top Coins 5-Day Performance — Kraken parallel fetch -->
+<div style="margin-bottom: 0px;">
+  <div style="padding: 32px 64px 0px;">
+    <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px;">
+      <span style="font-family: 'Courier New','Lucida Console',monospace; font-size: 10px; color: rgb(136,136,136); letter-spacing: 2px;">07</span>
+      <span style="font-family: Montserrat,'Helvetica Neue',Arial,sans-serif; font-size: 15px; font-weight: 700; color: rgb(0,0,0); letter-spacing: 0.3px; text-transform: uppercase;">Top Coins — 5-Day Normalized Returns</span>
+    </div>
+    <div style="height: 2px; background: rgb(255,195,44); margin-bottom: 16px;"></div>
+    <p style="font-family: Poppins,'Helvetica Neue',Arial,sans-serif; font-size: 13px; color: rgb(0,0,0); line-height: 1.75; margin-bottom: 4px;">
+      24 major assets indexed to 0% at start of period. All fetched in parallel from Kraken — loads in ~3 seconds. Excludes stablecoins (USDT, USDC) and coins not listed on Kraken (BNB, HYPE, USDS, MNT).
+    </p>
+  </div>
+  <div style="padding: 8px 64px 0px;">
+
+    <!-- Status row -->
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+      <span id="perf-status-text" style="font-family:Poppins,sans-serif; font-size:11px; color:rgb(136,136,136); white-space:nowrap; min-width:180px;">Initializing…</span>
+      <div style="flex:1; background:rgb(240,243,245); border-radius:3px; height:3px; overflow:hidden;">
+        <div id="perf-progress-bar" style="height:100%; width:0%; background:rgb(0,0,0); border-radius:3px; transition:width 0.4s;"></div>
+      </div>
+      <button onclick="loadKrakenPerf()" style="background:none; border:1px solid rgb(200,205,211); border-radius:3px; padding:5px 12px; font-family:Poppins,sans-serif; font-size:11px; color:rgb(61,68,80); cursor:pointer; flex-shrink:0;">↻ Refresh</button>
+    </div>
+
+    <!-- SVG chart -->
+    <div style="position:relative; margin-bottom:12px;">
+      <svg id="perf-svg" viewBox="0 0 860 380" style="width:100%; height:auto; display:block; cursor:crosshair; overflow:visible;"></svg>
+      <div id="perf-tooltip" style="display:none; position:absolute; background:rgba(255,255,255,0.97); border:1px solid rgb(221,225,230); border-radius:3px; padding:10px 12px; font-family:Poppins,sans-serif; font-size:11px; pointer-events:none; box-shadow:0 2px 8px rgba(0,0,0,0.08); z-index:10; min-width:165px;"></div>
+    </div>
+
+    <!-- Legend -->
+    <div id="perf-legend" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(110px,1fr)); gap:2px; border-top:1px solid rgb(232,235,238); padding-top:12px;"></div>
+    <div style="font-family:'Courier New','Lucida Console',monospace; font-size:9px; color:rgb(136,136,136); margin-top:10px;">
+      Source: Kraken Public API &middot; 24 coins &middot; 1H candles &middot; 5-day window &middot; All requests parallel &middot; Updated on page load
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+// ─── COINS ─────────────────────────────────────────────────────────────────
+const KRAKEN_COINS = [
+  { sym: "BTC",  name: "Bitcoin",        pair: "XBTUSD"  },
+  { sym: "ETH",  name: "Ethereum",       pair: "ETHUSD"  },
+  { sym: "XRP",  name: "XRP",            pair: "XRPUSD"  },
+  { sym: "SOL",  name: "Solana",         pair: "SOLUSD"  },
+  { sym: "TRX",  name: "TRON",           pair: "TRXUSD"  },
+  { sym: "DOGE", name: "Dogecoin",       pair: "DOGEUSD" },
+  { sym: "ADA",  name: "Cardano",        pair: "ADAUSD"  },
+  { sym: "AVAX", name: "Avalanche",      pair: "AVAXUSD" },
+  { sym: "LINK", name: "Chainlink",      pair: "LINKUSD" },
+  { sym: "SHIB", name: "Shiba Inu",      pair: "SHIBUSD" },
+  { sym: "TON",  name: "Toncoin",        pair: "TONUSD"  },
+  { sym: "SUI",  name: "Sui",            pair: "SUIUSD"  },
+  { sym: "XLM",  name: "Stellar",        pair: "XLMUSD"  },
+  { sym: "DOT",  name: "Polkadot",       pair: "DOTUSD"  },
+  { sym: "LTC",  name: "Litecoin",       pair: "LTCUSD"  },
+  { sym: "BCH",  name: "Bitcoin Cash",   pair: "BCHUSD"  },
+  { sym: "HBAR", name: "Hedera",         pair: "HBARUSD" },
+  { sym: "UNI",  name: "Uniswap",        pair: "UNIUSD"  },
+  { sym: "AAVE", name: "Aave",           pair: "AAVEUSD" },
+  { sym: "PEPE", name: "Pepe",           pair: "PEPEUSD" },
+  { sym: "ICP",  name: "Internet Comp.", pair: "ICPUSD"  },
+  { sym: "NEAR", name: "NEAR Protocol",  pair: "NEARUSD" },
+  { sym: "APT",  name: "Aptos",          pair: "APTUSD"  },
+  { sym: "TAO",  name: "Bittensor",      pair: "TAOUSD"  },
+];
+
+const LINE_COLORS = [
+  "#1a3a5c","#c41e3a","#2e7d32","#6a1b9a","#e65100",
+  "#0277bd","#558b2f","#ad1457","#00695c","#4527a0",
+  "#1565c0","#d84315","#37474f","#6d4c41","#00838f",
+  "#1b5e20","#880e4f","#bf360c","#263238","#4e342e",
+  "#01579b","#827717","#b71c1c","#004d40",
+];
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let perfSeries = {};   // { sym: [{t, v}, ...] }
+let hoveredSym = null;
+
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+function fmtPct(v) { return (v >= 0 ? '+' : '') + v.toFixed(2) + '%'; }
+function fmtDate(ts) {
+  return new Date(ts * 1000).toLocaleDateString('en-US', { month:'short', day:'numeric' });
+}
+function setStatus(txt, pct) {
+  const t = document.getElementById('perf-status-text');
+  const b = document.getElementById('perf-progress-bar');
+  if (t) t.textContent = txt;
+  if (b) b.style.width = pct + '%';
+}
+
+// Normalize close prices to % from first data point
+function normalize(candles) {
+  if (!candles.length) return [];
+  const base = parseFloat(candles[0][4]); // close
+  if (!base) return [];
+  return candles.map(c => ({ t: c[0], v: ((parseFloat(c[4]) - base) / base) * 100 }));
+}
+
+// ─── FETCH ALL IN PARALLEL ──────────────────────────────────────────────────
+// Kraken: interval=60 → hourly, returns up to 720 candles
+// 5 days * 24h = 120 candles — well within limit
+// since = unix timestamp 5 days ago
+async function fetchCoin(pair) {
+  const since = Math.floor(Date.now() / 1000) - 5 * 24 * 3600;
+  const url = `https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=60&since=${since}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const json = await r.json();
+  if (json.error && json.error.length) throw new Error(json.error[0]);
+  // Result key is the pair name (may differ from requested, e.g. XXBTZUSD)
+  const key = Object.keys(json.result).find(k => k !== 'last');
+  return json.result[key] || [];
+}
+
+async function loadKrakenPerf() {
+  perfSeries = {};
+  hoveredSym = null;
+  document.getElementById('perf-svg').innerHTML = '';
+  document.getElementById('perf-legend').innerHTML = '';
+  setStatus('Fetching all coins in parallel…', 10);
+
+  // Fire ALL requests simultaneously
+  const results = await Promise.allSettled(
+    KRAKEN_COINS.map(c => fetchCoin(c.pair).then(candles => ({ sym: c.sym, candles })))
+  );
+
+  setStatus('Processing…', 90);
+
+  let loaded = 0;
+  results.forEach((r, i) => {
+    if (r.status === 'fulfilled') {
+      const { sym, candles } = r.value;
+      perfSeries[sym] = normalize(candles);
+      loaded++;
+    } else {
+      perfSeries[KRAKEN_COINS[i].sym] = [];
+    }
+  });
+
+  setStatus(`Done — ${loaded}/${KRAKEN_COINS.length} coins loaded ✓`, 100);
+  drawPerf();
+  renderLegend();
+}
+
+// ─── DRAW SVG CHART ─────────────────────────────────────────────────────────
+function drawPerf() {
+  const svg = document.getElementById('perf-svg');
+  if (!svg) return;
+  const W=860, H=380, PX=52, PY=24;
+
+  const allS = KRAKEN_COINS.map(c => perfSeries[c.sym]||[]).filter(s => s.length > 1);
+  if (!allS.length) { svg.innerHTML = '<text x="430" y="190" text-anchor="middle" style="font-family:Poppins,sans-serif;font-size:13px;fill:#888;">No data — click Refresh</text>'; return; }
+
+  const allT = allS.flatMap(s => s.map(p => p.t));
+  const allV = allS.flatMap(s => s.map(p => p.v));
+  const minT=Math.min(...allT), maxT=Math.max(...allT);
+  const rawMin=Math.min(...allV), rawMax=Math.max(...allV);
+  const pad=(rawMax-rawMin)*0.06, minV=rawMin-pad, maxV=rawMax+pad;
+
+  const xS = t => maxT===minT ? 0.5 : (t-minT)/(maxT-minT);
+  const yS = v => maxV===minV ? 0.5 : (v-minV)/(maxV-minV);
+  const px = t => PX + xS(t)*(W-2*PX);
+  const py = v => PY + (1-yS(v))*(H-2*PY);
+
+  // Y ticks
+  const range = maxV-minV;
+  const step = range>80?20:range>40?10:range>20?5:range>10?2:1;
+  const yTicks = [];
+  for (let v=Math.ceil(minV/step)*step; v<=maxV; v+=step) yTicks.push(v);
+
+  // X ticks — one per day
+  const xTicks = [];
+  const msDay = 3600; // hourly timestamps, step by 24h in seconds
+  const firstDay = Math.ceil(minT / 86400) * 86400;
+  for (let t=firstDay; t<=maxT; t+=86400) xTicks.push(t);
+
+  let h = '';
+
+  // Grid
+  yTicks.filter(v=>v!==0).forEach(v =>
+    h += `<line x1="${PX}" y1="${py(v).toFixed(1)}" x2="${W-PX}" y2="${py(v).toFixed(1)}" stroke="#e8ebee" stroke-width="0.5"/>`
+  );
+  // Zero line
+  if (minV<=0 && maxV>=0)
+    h += `<line x1="${PX}" y1="${py(0).toFixed(1)}" x2="${W-PX}" y2="${py(0).toFixed(1)}" stroke="#c8cdd3" stroke-width="1" stroke-dasharray="4,3"/>`;
+
+  // Data lines
+  KRAKEN_COINS.forEach((c, i) => {
+    const s = perfSeries[c.sym]||[];
+    if (s.length < 2) return;
+    const isH = hoveredSym===c.sym, anyH = hoveredSym!==null;
+    const col = LINE_COLORS[i];
+    const pts = s.map(p => `${px(p.t).toFixed(1)},${py(p.v).toFixed(1)}`).join(' L ');
+    h += `<path d="M ${pts}" fill="none" stroke="${col}" stroke-width="${isH?2.5:anyH?0.5:1.3}" opacity="${anyH?(isH?1:0.12):0.85}" stroke-linecap="round" stroke-linejoin="round" style="transition:opacity 0.1s,stroke-width 0.1s" onmouseenter="window._perfHover('${c.sym}')" onmouseleave="window._perfHover(null)"/>`;
+  });
+
+  // Y labels
+  yTicks.forEach(v =>
+    h += `<text x="${PX-6}" y="${(py(v)+4).toFixed(1)}" text-anchor="end" style="font-size:9px;font-family:Poppins,sans-serif;" fill="${v===0?'#333':'#888'}">${v>0?'+'+v+'%':v+'%'}</text>`
+  );
+  // X labels
+  xTicks.forEach(t =>
+    h += `<text x="${px(t).toFixed(1)}" y="${H-5}" text-anchor="middle" style="font-size:9px;font-family:Poppins,sans-serif;" fill="#888">${fmtDate(t)}</text>`
+  );
+
+  svg.innerHTML = h;
+
+  // Crosshair tooltip
+  svg.onmousemove = (e) => {
+    const rect = svg.getBoundingClientRect();
+    const svgX = (e.clientX-rect.left)/rect.width*W;
+    const tC = minT + ((svgX-PX)/(W-2*PX))*(maxT-minT);
+
+    // Snap to nearest timestamp from first available series
+    const ref = allS[0];
+    const closest = ref.reduce((b,p) => Math.abs(p.t-tC)<Math.abs(b.t-tC)?p:b, ref[0]);
+
+    const items = KRAKEN_COINS.map((c,i) => {
+      const s = perfSeries[c.sym]||[];
+      if (!s.length) return null;
+      const pt = s.reduce((b,p) => Math.abs(p.t-closest.t)<Math.abs(b.t-closest.t)?p:b, s[0]);
+      return { sym:c.sym, v:pt.v, col:LINE_COLORS[i] };
+    }).filter(Boolean).sort((a,b)=>b.v-a.v);
+
+    const tt = document.getElementById('perf-tooltip');
+    let html = `<div style="font-weight:600;color:#0a2540;font-size:11px;margin-bottom:5px;border-bottom:1px solid #eee;padding-bottom:4px;">${fmtDate(closest.t)}</div>`;
+    items.slice(0,12).forEach(item => {
+      const vc = item.v>0?'#16a34a':item.v<0?'#dc2626':'#888';
+      html += `<div style="display:flex;align-items:center;gap:5px;padding-top:2px;"><span style="width:7px;height:7px;border-radius:50%;background:${item.col};flex-shrink:0;display:inline-block;"></span><span style="flex:1;color:#3d4450;font-weight:500;">${item.sym}</span><span style="font-weight:600;color:${vc};font-variant-numeric:tabular-nums;">${fmtPct(item.v)}</span></div>`;
+    });
+    if (items.length>12) html+=`<div style="font-size:10px;color:#999;padding-top:3px;text-align:center;">+${items.length-12} more</div>`;
+    tt.innerHTML = html;
+    tt.style.display = 'block';
+    tt.style.left = Math.min(e.clientX-rect.left+14, rect.width-172)+'px';
+    tt.style.top = Math.max(e.clientY-rect.top-16, 4)+'px';
+  };
+  svg.onmouseleave = () => { document.getElementById('perf-tooltip').style.display='none'; };
+}
+
+// ─── LEGEND ─────────────────────────────────────────────────────────────────
+function renderLegend() {
+  const el = document.getElementById('perf-legend');
+  if (!el) return;
+  const sorted = KRAKEN_COINS.map((c,i) => {
+    const s = perfSeries[c.sym]||[];
+    const v = s.length ? s[s.length-1].v : null;
+    return { sym:c.sym, v, col:LINE_COLORS[i] };
+  }).sort((a,b)=>(b.v??-999)-(a.v??-999));
+
+  el.innerHTML = sorted.map(item => {
+    const vc = item.v==null?'#888':item.v>0?'#16a34a':'#dc2626';
+    const bg = hoveredSym===item.sym ? '#f0f3f5' : 'transparent';
+    const op = hoveredSym&&hoveredSym!==item.sym ? '0.3' : '1';
+    return `<div onmouseenter="window._perfHover('${item.sym}')" onmouseleave="window._perfHover(null)" style="display:flex;align-items:center;gap:5px;padding:3px 5px;border-radius:2px;cursor:default;background:${bg};opacity:${op};transition:opacity 0.1s;">
+      <span style="width:8px;height:8px;border-radius:50%;background:${item.col};flex-shrink:0;display:inline-block;"></span>
+      <span style="font-family:Poppins,sans-serif;font-size:11px;color:#3d4450;font-weight:500;flex:1;">${item.sym}</span>
+      <span style="font-family:Poppins,sans-serif;font-size:11px;font-weight:600;color:${vc};font-variant-numeric:tabular-nums;">${item.v!=null?fmtPct(item.v):'—'}</span>
+    </div>`;
+  }).join('');
+}
+
+// ─── GLOBAL HOVER (called from inline SVG onmouseenter) ─────────────────────
+window._perfHover = function(sym) {
+  hoveredSym = sym;
+  drawPerf();
+  renderLegend();
+};
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+window.loadKrakenPerf = loadKrakenPerf;
+document.addEventListener('DOMContentLoaded', loadKrakenPerf);
+
+})(); // end IIFE
+</script>

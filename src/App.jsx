@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import EXPORT_CHART_SECTIONS from './chart_sections.html?raw';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const INK        = "#000000";
@@ -754,14 +755,12 @@ ${geoNews.map((n,i)=>`${i+1}. HEADLINE: ${n.title}\nCOVERAGE: ${(n.sources||[n.s
 function buildExportHTML(rootEl, date) {
   const clone = rootEl.cloneNode(true);
   clone.querySelectorAll(".noprint").forEach(el => el.remove());
-  // Clear chart containers so CHART06/07_SCRIPT can reinitialize cleanly in the export
-  ["btc-chart-daily","btc-rsi-daily","btc-chart-4h","btc-rsi-4h","btc-price-daily","btc-price-4h"].forEach(id => {
-    const el = clone.querySelector(`#${id}`); if (el) el.innerHTML = "";
-  });
-  const pw = clone.querySelector("#perf-chart-wrap");
-  if (pw) pw.innerHTML = '<div style="padding:20px;font-family:\'Courier New\',monospace;font-size:10px;color:#888">Loading…</div>';
-  const ps = clone.querySelector("#perf-status"); if (ps) ps.innerHTML = "";
-  const pl = clone.querySelector("#perf-legend"); if (pl) pl.innerHTML = "";
+  // Remove sections 06+07 from clone — replaced by reference HTML with working charts
+  const chartPlaceholder = clone.querySelector('#export-charts-placeholder');
+  if (chartPlaceholder) chartPlaceholder.remove();
+  // Inject reference chart sections (with CDN script + BTC + Kraken) before the footer
+  const footer = clone.querySelector('#report-footer');
+  if (footer) footer.insertAdjacentHTML('beforebegin', EXPORT_CHART_SECTIONS);
   return `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
@@ -770,10 +769,7 @@ function buildExportHTML(rootEl, date) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet"/>
 <style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#fff;font-family:'Poppins',sans-serif;}</style>
-<script src="${CHART_CDN_URL}"></script>
-</head><body>${clone.outerHTML}<script>${CHART06_SCRIPT}<\/script>
-<script>${CHART07_SCRIPT}<\/script>
-</body></html>`;
+</head><body>${clone.outerHTML}</body></html>`;
 }
 
 // ── Export: Shareable link (server-side via /api/share) ──────────────────────
@@ -1802,6 +1798,7 @@ function ReportScreen({ data, onBack }) {
           </div>
         </ReportSection>}
 
+        <div id="export-charts-placeholder" style={{display:"contents"}}>
         {divider}
 
         {/* 06 — BTC Technical Analysis */}
@@ -1858,9 +1855,10 @@ function ReportScreen({ data, onBack }) {
             Source: Kraken Public API · 1H OHLC · 24 coins · Normalized to 5-day open · Live on page load — requires https:// (not file://)
           </div>
         </ReportSection>}
+        </div>{/* end export-charts-placeholder */}
 
         {/* Footer */}
-        <div style={{margin:"32px 64px 0"}}>
+        <div id="report-footer" style={{margin:"32px 64px 0"}}>
           <div style={{borderTop:`3px solid ${INK}`}}/>
           <div style={{borderTop:`2px solid ${GOLD_BRAND}`,marginTop:3}}/>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:16}}>
