@@ -554,7 +554,7 @@ ${geoNews.map((n,i)=>`${i+1}. HEADLINE: ${n.title}\nCOVERAGE: ${(n.sources||[n.s
         headers:{ "Content-Type":"application/json" },
         body:JSON.stringify({ prompt }),
       }),
-      timeout(28000),
+      timeout(55000),
     ]);
   } catch(e) {
     return { _err:"api_error", msg:`Request failed: ${e.message}` };
@@ -1266,21 +1266,9 @@ function ReportScreen({ data, onBack }) {
   const hideArticle = i => setHiddenArticles(s => new Set([...s, i]));
 
   useEffect(() => {
-    const initCharts = () => {
-      ["chart06-init","chart07-init"].forEach(id => { const old = document.getElementById(id); if(old) old.remove(); });
-      const s06 = document.createElement("script"); s06.id = "chart06-init"; s06.textContent = CHART06_SCRIPT; document.body.appendChild(s06);
-      const s07 = document.createElement("script"); s07.id = "chart07-init"; s07.textContent = CHART07_SCRIPT; document.body.appendChild(s07);
-    };
-    if(window.LightweightCharts) { initCharts(); }
-    else {
-      const existing = document.getElementById("lc-cdn");
-      if(existing) { existing.addEventListener("load", initCharts, {once:true}); }
-      else {
-        const s = document.createElement("script"); s.id = "lc-cdn"; s.src = CHART_CDN_URL;
-        s.addEventListener("load", initCharts, {once:true}); document.head.appendChild(s);
-      }
-    }
-    return () => { ["chart06-init","chart07-init"].forEach(id => { const el = document.getElementById(id); if(el) el.remove(); }); };
+    // lightweight-charts is loaded in index.html; run chart init scripts directly
+    try { (new Function(CHART06_SCRIPT))(); } catch(e) { console.error("Chart06 init error:", e); }
+    try { (new Function(CHART07_SCRIPT))(); } catch(e) { console.error("Chart07 init error:", e); }
   }, []);
 
   const btcNet = ETF_BTC.reduce((s,k)=>s+(parseFloat(btcF[k])||0),0);

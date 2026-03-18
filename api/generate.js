@@ -15,13 +15,14 @@ export default async function handler(req, res) {
   try {
     const upstream = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
+      signal: AbortSignal.timeout(55000),
       headers: {
         "Content-Type": "application/json",
         "x-api-key": key.trim(),
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "claude-sonnet-4-6",
         max_tokens: 2000,
         messages: [{ role: "user", content: prompt }],
       }),
