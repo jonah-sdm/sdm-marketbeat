@@ -1,5 +1,5 @@
 {
-  "date": "2026-04-08",
+  "date": "2026-04-09",
   "source": "yahoo_finance_flow_proxy",
   "note": "Flow proxy = \u00b1(volume \u00d7 price / 1M). Direction: + if close>open, \u2212 if close<open.",
   "btc": {
@@ -19,7 +19,7 @@
     "ETHA": NaN,
     "FETH": NaN,
     "ETHW": NaN,
-    "CETH": 193.4,
+    "CETH": -107.0,
     "ETHV": NaN,
     "QETH": NaN,
     "EZET": NaN,
@@ -31,5 +31,5 @@
     "SOLZ": NaN,
     "SOLT": NaN
   },
-  "scraped_at": "2026-04-08T04:11:07.772842+00:00"
+  "scraped_at": "2026-04-09T04:06:23.431059+00:00"
 }
