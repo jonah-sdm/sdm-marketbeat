@@ -1,35 +1,35 @@
 {
-  "date": "2026-07-28",
+  "date": "2026-07-29",
   "source": "yahoo_finance_flow_proxy",
   "note": "Flow proxy = \u00b1(volume \u00d7 price / 1M). Direction: + if close>open, \u2212 if close<open.",
   "btc": {
-    "IBIT": 1029.2,
-    "FBTC": 128.3,
-    "BITB": 25.3,
-    "ARKB": 20.6,
-    "BTCO": 3.2,
-    "EZBC": 4.0,
-    "BRRR": 1.0,
-    "HODL": 14.7,
-    "BTCW": -0.3,
-    "GBTC": 58.6,
-    "BTC": 30.6
+    "IBIT": NaN,
+    "FBTC": NaN,
+    "BITB": NaN,
+    "ARKB": NaN,
+    "BTCO": NaN,
+    "EZBC": NaN,
+    "BRRR": NaN,
+    "HODL": NaN,
+    "BTCW": NaN,
+    "GBTC": NaN,
+    "BTC": NaN
   },
   "eth": {
-    "ETHA": -629.4,
-    "FETH": -33.4,
-    "ETHW": -15.3,
+    "ETHA": NaN,
+    "FETH": NaN,
+    "ETHW": NaN,
     "CETH": null,
-    "ETHV": -0.4,
-    "QETH": -0.6,
-    "EZET": -1.0,
-    "ETHE": -33.4,
-    "ETH": -30.2
+    "ETHV": NaN,
+    "QETH": NaN,
+    "EZET": NaN,
+    "ETHE": NaN,
+    "ETH": NaN
   },
   "sol": {
-    "GSOL": -17.8,
-    "SOLZ": -7.5,
-    "SOLT": -5.1
+    "GSOL": NaN,
+    "SOLZ": NaN,
+    "SOLT": NaN
   },
-  "scraped_at": "2026-07-28T04:33:02.514430+00:00"
+  "scraped_at": "2026-07-29T04:38:38.891489+00:00"
 }
