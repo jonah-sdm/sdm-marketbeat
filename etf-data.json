@@ -1,5 +1,5 @@
 {
-  "date": "2026-09-05",
+  "date": "2026-09-08",
   "source": "yahoo_finance_flow_proxy",
   "note": "Flow proxy = \u00b1(volume \u00d7 price / 1M). Direction: + if close>open, \u2212 if close<open.",
   "btc": {
@@ -31,5 +31,5 @@
     "SOLZ": 13.5,
     "SOLT": 34.2
   },
-  "scraped_at": "2026-09-05T05:54:15.631677+00:00"
+  "scraped_at": "2026-09-08T06:03:29.384757+00:00"
 }
